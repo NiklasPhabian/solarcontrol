@@ -1,0 +1,15 @@
+[Unit]
+Description=PV OLED Display
+After=network.target
+
+[Service]
+WorkingDirectory=/home/griessbaum/pv
+ExecStart=/home/griessbaum/envs/pv/bin/python /home/griessbaum/pv/display_latest.py
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=pv-oled-display
+
+[Install]
+WantedBy=multi-user.target
