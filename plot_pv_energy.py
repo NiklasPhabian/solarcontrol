@@ -182,8 +182,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = Config()
-    db_path = config.get_sqlite_db_path()
-    table_name = config.get_realtime_table_name()
+    db_path = config.sqlite_db_path()
+    table_name = config.realtime_table_name()
 
     plotter = PVPlotter(db_path=db_path, table_name=table_name, days=args.days)
     series = plotter.load_series(metric=args.metric, group_by=args.group_by)

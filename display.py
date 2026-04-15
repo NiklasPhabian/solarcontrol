@@ -4,6 +4,9 @@ import luma.oled.device
 import luma.core.render
 import PIL.ImageFont
 import time
+from config import Config
+
+config = Config()
 
 
 class PVDisplay:
@@ -93,21 +96,23 @@ class PVDisplay:
                 draw.rectangle([x, y, x + bar_width - spacing, self.device.height], fill="white")
 
 
-    def show_chart_with_last_value(self, data):
+    def show_chart_with_last_value(self, bars, value=None):
         """
         Display a bar chart at the bottom and the last value on top.
         data: list of numeric values
         """
-        if not data:
+        if not bars:
             self.show_text("No data")
             return
 
-        last_value = data[-1]
         # Format last_value like power
-        if last_value >= 1000:
-            text = f"{last_value / 1000:.2f} kW"
+        if value is None:
+            value = bars[-1]
+
+        if value >= 1000:
+            text = f"{value / 1000:.2f} kW"
         else:
-            text = f"{last_value:.1f} W"
+            text = f"{value:.1f} W"
 
         with luma.core.render.canvas(self.device) as draw:
             # Draw the text on top
@@ -120,17 +125,17 @@ class PVDisplay:
             draw.text((x_text, y_text), text, font=font, fill="white")
 
             # Draw bars below
-            max_val = max(data)
+            max_val = max(bars)
             if max_val == 0:
                 max_val = 1
 
-            num_bars = len(data)
+            num_bars = len(bars)
             bar_width = self.device.width // num_bars
             spacing = 1
             chart_top = text_height + 5  # Start bars below text
             chart_height = self.device.height - chart_top
 
-            for i, val in enumerate(data):
+            for i, val in enumerate(bars):
                 bar_height = int((val / max_val) * chart_height)
                 x_bar = i * bar_width + spacing // 2
                 y_bar = self.device.height - bar_height
@@ -148,17 +153,24 @@ def display_loop():
 
 def display_list():
     display = PVDisplay()
-    lines = ['Hello sexy Qian', 'You are pretty', 'And good at BJ', 'I love you', 'Forever and ever', 'Muah!']
+    lines = ['Hello Qian', 'You are pretty', 'Have a nice day!']
     for line in lines:
         display.show_text(line)
         time.sleep(2)
 
 
-
 if __name__ == '__main__':
-    import random
+    import database
+    
     display = PVDisplay()
-    data = [random.randint(1, 100) for _ in range(60)]
+    db_path = config.sqlite_db_path()
+    table_name = config.realtime_table_name()
+
+    db = database.SQLiteDatabase(db_path, table_name)
+    
     while True:
-        display.show_chart_with_last_value(data)
+        bars = [row['power'] for row in db.latest_n15mins(60)]
+        value = db.latest_realtime()['power']
+        display.show_chart_with_last_value(bars=bars, value=value)
         time.sleep(2)
+        

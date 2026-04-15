@@ -6,14 +6,13 @@ from display import PVDisplay
 
 POLL_INTERVAL_SECONDS = 5
 
+config = Config()
+db_path = config.sqlite_db_path()
+table_name = config.realtime_table_name()
+display = PVDisplay()
 
-def main() -> None:
-    config = Config()
-    db_path = config.get_sqlite_db_path()
-    table_name = config.get_realtime_table_name()
 
-    display = PVDisplay()
-
+def display_power() -> None:
     with SQLiteDatabase(db_path, table_name) as db:
         last_timestamp = None
         while True:
@@ -29,8 +28,19 @@ def main() -> None:
             time.sleep(POLL_INTERVAL_SECONDS)
 
 
+def display_chart() -> None:
+    with SQLiteDatabase(db_path, table_name) as db:
+        while True:
+            bars = [row['power'] for row in db.latest_n15mins(60)]
+            value = db.latest_realtime()['power']
+            display.show_chart_with_last_value(bars=bars, value=value)
+            time.sleep(POLL_INTERVAL_SECONDS)
+        
+
+
 if __name__ == "__main__":
     try:
-        main()
+        #display_power()
+        display_chart()
     except KeyboardInterrupt:
         pass
