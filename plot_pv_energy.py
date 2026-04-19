@@ -5,26 +5,16 @@ from typing import Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import sqlite3
 
 from config import Config
 
 DEFAULT_OUTPUT_FILE = "pv_energy_plot.png"
 
 
-class PVPlotter:
-    def __init__(self, db_path: Path, table_name: str, days: int = 30):
-        self.db_path = db_path
-        self.table_name = table_name
-        self.days = days
-        self.cutoff = datetime.now() - timedelta(days=days)
-
-    def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.db_path)
-
-    def _read_sql(self, query: str, params: tuple) -> pd.DataFrame:
-        with self._connect() as conn:
-            return pd.read_sql_query(query, conn, params=params)
+class Plotter:
+    
+    def __init__(self, database):
+        self.database = database
 
     def load_series(self, metric: str, group_by: str) -> pd.DataFrame:
         if group_by == "raw":
@@ -185,7 +175,7 @@ def main() -> None:
     db_path = config.sqlite_db_path()
     table_name = config.realtime_table_name()
 
-    plotter = PVPlotter(db_path=db_path, table_name=table_name, days=args.days)
+    plotter = Plotter(db_path=db_path, table_name=table_name, days=args.days)
     series = plotter.load_series(metric=args.metric, group_by=args.group_by)
 
     if series.empty:

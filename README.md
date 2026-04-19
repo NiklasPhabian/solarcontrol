@@ -1,11 +1,17 @@
 # Install
 
-## Python-kasa
-
+## Env setup
 ```bash
-rm -rf ~/envs/pv
-python3 -m venv ~/envs/pv
-source ~/envs/pv/bin/activate.fish
+sudo mkdir -p /opt/solarcontrol
+sudo chown -R $USER:$USER /opt/solarcontrol
+python3 -m venv /opt/solarcontrol/venv
+source /opt/solarcontrol/venv/bin/activate.fish
+pip install --upgrade pip
+```
+
+
+## Python-kasa
+```bash
 pip install --upgrade pip setuptools wheel
 pip install "cryptography<42"
 pip install python-kasa
@@ -33,7 +39,7 @@ Interface Options → I2C → Enable
 
 ```bash
 sudo apt install i2c-tools
-i2cdetect -y 1
+sudo i2cdetect -y 1
 ```
 
 ```bash
@@ -41,10 +47,7 @@ sudo apt install libjpeg-dev
 pip install luma.oled
 ```
 
-
-
-
-# Run the displaying as service
+### Run the displaying as service
 
 Create the systemd unit from the template in this repository:
 
@@ -55,6 +58,64 @@ sudo systemctl enable --now pv-oled-display.service
 ```
 
 If you need to inspect it, the unit template is available in `pv-oled-display.service`.
+
+## Temperatue probes
+### Activate kernel modules
+
+#### Temporarily:
+```bash
+sudo modprobe w1-gpio
+sudo modprobe w1-therm
+```
+
+#### Persist
+```bash
+sudo nano /etc/modules
+``` 
+
+Add
+```
+w1-gpio
+w1-therm
+```
+
+reboot and verify with:
+
+```bash
+lsmod | grep w1
+```
+
+### Add overlays
+#### Temporarily
+
+```bash
+sudo dtoverlay w1-gpio gpiopin=4 pullup=0
+```
+
+#### Persist
+
+```bash
+sudo nano /boot/config.txt 
+```
+
+
+```bash
+dtoverlay=w1-gpio,gpiopin=4
+```
+
+Reboot and verify with:
+
+```bash
+ls /sys/bus/w1/devices/
+```
+
+#### Identification Notes for my BWWP system:
+
+| ID                | Cable Color   |
+| :--               | :--           |
+| 28-3ce1d44312b4   | White         |
+| 28-3ce1d4432b6f   | Black         |
+| 28-3ce1d4438ff7   | Blue          |
 
 
 # Making pngs

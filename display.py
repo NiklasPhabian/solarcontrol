@@ -4,15 +4,14 @@ import luma.oled.device
 import luma.core.render
 import PIL.ImageFont
 import time
-from config import Config
-
-config = Config()
 
 
-class PVDisplay:
+class Display:
 
-    def __init__(self):
-        self.serial =  luma.core.interface.serial.i2c(port=1, address=0x3C)
+    def __init__(self, port, address):
+        self.port = int(port)
+        self.address = address
+        self.serial =  luma.core.interface.serial.i2c(port=self.port, address=self.address)
         self.device = luma.oled.device.ssd1306(self.serial)
 
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -53,23 +52,42 @@ class PVDisplay:
         with luma.core.render.canvas(self.device) as draw:
             self._draw_centered(draw, text, font=font)
 
-    def show_power(self, power):
+    def display_quantity(self, quantity, unit):
         """
-        Display current power centered on the OLED.
+        Display a quantity with its unit, centered on the OLED.
         """
-
-        if power is None:
+        if quantity is None:
             self.show_text("No data")
             return
-
-        # Format power nicely
-        if power >= 1000:
-            text = f"{power / 1000:.2f} kW"
+        
+        if quantity >= 1_000_000:
+            quantity /= 1_000_000
+            unit = 'M' + unit
+            text = f"{quantity:.2f} {unit}"
+        elif quantity >= 1000:
+            quantity /= 1000
+            unit = 'k' + unit
+            text = f"{quantity:.2f} {unit}"
+        elif quantity < 1:
+            quantity *= 1000
+            unit = 'm' + unit
+            text = f"{quantity:.2f} {unit}"
         else:
-            text = f"{power:.1f} W"
+            text = f"{quantity:.1f} {unit}"
 
         self.show_text(text)
 
+    def display_celsius(self, temp_c):
+        """
+        Display a temperature in Celsius, formatted nicely.
+        """
+        self.display_quantity(temp_c, "°C")
+
+    def display_watts(self, watts):
+        """
+        Display power in watts, formatted nicely.
+        """
+        self.display_quantity(watts, "W")
 
     def show_bar_chart(self, data):
         """
@@ -142,27 +160,11 @@ class PVDisplay:
                 draw.rectangle([x_bar, y_bar, x_bar + bar_width - spacing, self.device.height], fill="white")
 
 
-def display_loop():
-    display = PVDisplay()
-    power = 123   # Example power value
-
-    while True:
-        display.show(power)
-        time.sleep(2)
-
-
-def display_list():
-    display = PVDisplay()
-    lines = ['Hello Qian', 'You are pretty', 'Have a nice day!']
-    for line in lines:
-        display.show_text(line)
-        time.sleep(2)
-
-
 if __name__ == '__main__':
     import database
+    import config
     
-    display = PVDisplay()
+    display = Display()
     db_path = config.sqlite_db_path()
     table_name = config.realtime_table_name()
 

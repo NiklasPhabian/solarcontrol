@@ -2,14 +2,14 @@ import time
 
 from config import Config
 from database import SQLiteDatabase
-from display import PVDisplay
+from display import Display
 
 POLL_INTERVAL_SECONDS = 5
 
 config = Config()
 db_path = config.sqlite_db_path()
 table_name = config.realtime_table_name()
-display = PVDisplay()
+display = Display()
 
 
 def display_power() -> None:
@@ -23,7 +23,7 @@ def display_power() -> None:
                 timestamp = latest.get("timestamp")
                 power = latest.get("power")
                 if timestamp != last_timestamp:
-                    display.show_power(power)
+                    display.display_watts(power)
                     last_timestamp = timestamp
             time.sleep(POLL_INTERVAL_SECONDS)
 

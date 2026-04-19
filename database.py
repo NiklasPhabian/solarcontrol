@@ -36,9 +36,8 @@ LIMIT {n};
 
 
 class SQLiteDatabase:
-    def __init__(self, db_path: Path, table_name: str = "pv"):
+    def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
-        self.table_name = self._validate_table_name(table_name)
         self.conn = sqlite3.connect(self.db_path)
         self._ensure_table()
 
@@ -48,8 +47,8 @@ class SQLiteDatabase:
             return name
         raise ValueError("Invalid SQLite table name. Use only letters, numbers, and underscores, and do not start with a digit.")
 
-    def _ensure_table(self) -> None:
-        create_sql = CREATE_TABLE_SQL.format(table_name=self.table_name)
+    def _ensure_table(self, table_name) -> None:
+        create_sql = CREATE_TABLE_SQL.format(table_name=table_name)
         self.conn.execute(create_sql)
         self.conn.commit()
 
@@ -83,3 +82,11 @@ class SQLiteDatabase:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
+
+
+class SQLiteTable():
+    
+    def __init__(self, database, name, columns):
+        self.database = database
+        self.name = name
+        self.columns = columns

@@ -1,46 +1,48 @@
-import RPi.GPIO as GPIO
-import datetime
-from config import Config
 
-config = Config()
-feed_in_threshold = config['controller']['feed_in_threshold']
-consumption_threshold = config['controller']['consumption_threshold']
-min_on_seconds = config['controller']['min_on_seconds']
+import datetime
+
 
 class Controller:
     
-    def __init__(self, cursor=None):
-        self.channel = 22
-        GPIO.setwarnings(True)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.channel, GPIO.OUT)
-        self.on = None
-        self.cursor = cursor
+    def __init__(self, on_threshold, off_threshold, min_on_seconds, min_off_seconds):
+        self.turned_on = False
+        self.time_turned_on = None
+        self.time_turned_off = datetime.datetime.now()
+        
+        self.min_on_seconds = int(min_on_seconds)
+        self.min_off_seconds = int(min_off_seconds)
 
-    def get_state(self):
-        query = 'SELECT on FROM solarthermal ORDER BY timestamp DESC LIMIT 1'
-        self.cursor.execute(query)
-        self.on = bool(self.cursor.fetchone()[0])
+        self.on_threshold = float(on_threshold)
+        self.off_threshold = float(off_threshold)
+        
+    def seconds_since_on(self):
+        return (datetime.datetime.now()-self.time_turned_on).total_seconds()
 
-    def get_seconds_since_on(self):
-        query = 'SELECT timestamp FROM bwwp WHERE on=1 ORDER BY timestamp DESC LIMIT 1'
-        self.cursor.execute(query)
-        last_time_on = self.cursor.fetchone()[0]
-        last_time_on = datetime.datetime.strptime(last_time_on, '%Y-%m-%d %H:%M:%S.%f')
-        self.seconds_since_on = (datetime.datetime.now()-last_time_on).total_seconds()
+    def seconds_since_off(self):
+        return (datetime.datetime.now()-self.time_turned_off).total_seconds()
 
-    def control(self, power):
-        if power < feed_in_threshold and not self.on:
-            print("Feed-in above threshold. Turning on")
-            self.turn_on()
-        elif power > consumption_threshold and self.seconds_since_on > min_on_seconds and self.on:
-            print("Consumption above threshold. Turning off")
-            self.turn_off()
-    
-    def turn_off(self):
-        self.on = False
-        GPIO.output(self.channel, GPIO.LOW)
-    
-    def turn_on(self):
-        self.on = True
-        GPIO.output(self.channel, GPIO.HIGH)
+    def should_turn_on(self, power_balance):
+        should_turn_on = False
+        if not self.turned_on:
+            if power_balance < self.on_threshold:
+                if self.seconds_since_off() > self.min_off_seconds:
+                    should_turn_on = True
+        return should_turn_on
+
+
+    def should_turn_off(self, power_balance):
+        should_turn_off = False
+        if self.turned_on:
+            if power_balance > self.off_threshold:
+                if self.seconds_since_on() > self.min_on_seconds:
+                    should_turn_off = True
+        return should_turn_off
+
+    def control(self, power_balance):
+        if self.should_turn_on(power_balance):
+            self.turned_on = True
+            self.time_turned_on = datetime.datetime.now()
+        elif self.should_turn_off(power_balance):
+            self.turned_on = False
+            self.time_turned_off = datetime.datetime.now()
+        return self.turned_on
