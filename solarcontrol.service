@@ -5,15 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-<<<<<<< HEAD
-User=pi
-WorkingDirectory=/opt/solarcontrol/app
-ExecStart=/opt/solarcontrol/venv/bin/python main.py
-=======
 User=griessbaum
 WorkingDirectory=/opt/solarcontrol/app
 ExecStart=/opt/solarcontrol/venv/bin/python main_bishop.py
->>>>>>> 582eff108a0b04459e817f8b1c410a9cc9418910
 
 Restart=on-failure
 RestartSec=5
