@@ -5,7 +5,7 @@ from relay import Relay
 from display import Display
 from database import SQLiteDatabase
 from dateutil import tz
-from temperature_probes import TempSensor
+from temperature_sensor import TemperatureSensor
 import time
 import datetime
 import atexit
@@ -26,9 +26,9 @@ controller = Controller(on_threshold=on_threshold, off_threshold=off_threshold, 
 temp_blue = config['temp_sensors']['blue']
 temp_black = config['temp_sensors']['black']
 temp_white = config['temp_sensors']['white']
-ts_blue = TempSensor(temp_blue)
-ts_black = TempSensor(temp_black)
-ts_white = TempSensor(temp_white)
+ts_blue = TemperatureSensor(temp_blue)
+ts_black = TemperatureSensor(temp_black)
+ts_white = TemperatureSensor(temp_white)
 
 # Relay 
 pin = config['relay']['pin']

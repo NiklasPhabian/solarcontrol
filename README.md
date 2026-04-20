@@ -1,5 +1,37 @@
 # Install
 
+```bash
+cd solarcontrol
+sudo mkdir -p /opt/solarcontrol
+#sudo cp -r . /opt/solarcontrol
+sudo ln -s "$(pwd -P)" /opt/solarcontrol
+
+sudo chown -R $USER:$USER /opt/solarcontrol
+```
+
+```bash
+cd /opt/solarcontrol
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+```
+
+# install dependencies
+pip install -r requirements.txt
+
+
+## Service
+Create the systemd unit from the template in this repository:
+
+```bash
+sudo cp solarcontrol.service /etc/systemd/system/solarcontrol.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now solarcontrol.service
+sudo systemctl daemon-reload
+journalctl -u solarcontrol -f
+```
+
+# Development 
 ## Env setup
 ```bash
 sudo mkdir -p /opt/solarcontrol
@@ -47,17 +79,6 @@ sudo apt install libjpeg-dev
 pip install luma.oled
 ```
 
-### Run the displaying as service
-
-Create the systemd unit from the template in this repository:
-
-```bash
-sudo cp pv-oled-display.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now pv-oled-display.service
-```
-
-If you need to inspect it, the unit template is available in `pv-oled-display.service`.
 
 ## Temperatue probes
 ### Activate kernel modules
