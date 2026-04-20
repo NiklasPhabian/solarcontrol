@@ -9,8 +9,7 @@ TABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 class SQLiteDatabase:
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
-        self.conn = sqlite3.connect(self.db_path)
-        self._ensure_table()
+        self.conn = sqlite3.connect(self.db_path)        
 
     def close(self) -> None:
         self.conn.close()
@@ -29,9 +28,9 @@ class SQLiteTable:
         self.name = name
         self.columns = columns
 
-    def create(self):        
+    def create_if_not_exists(self):        
         columns_def = ", ".join(f"{name} REAL" for name in self.columns)
-        create_sql = f"CREATE TABLE IF NOT EXISTS {self.name} (TIMESTAMP TEXT PRIMARY KEY, {columns_def})"
+        create_sql = f"CREATE TABLE IF NOT EXISTS {self.name} (timestamp TEXT PRIMARY KEY, {columns_def})"
         self.database.conn.execute(create_sql)
         self.database.conn.commit()
     
@@ -48,7 +47,15 @@ class SQLiteTable:
         row = cursor.fetchone()
         return row[0] if row else None
     
-    def latest_n(self, column, n=60, aggregate="AVG", sample_interval=15) -> list[Dict[str, object]]:
+    def lates_row(self) -> Optional[Dict[str, object]]:
+        query_sql = f"SELECT * FROM {self.name} ORDER BY timestamp DESC LIMIT 1"
+        cursor = self.database.conn.execute(query_sql)
+        row = cursor.fetchone()
+        if row:
+            return dict(zip(["timestamp"] + self.columns, row))
+        return None
+    
+    def latest_n_resampled(self, column, n=60, aggregate="AVG", sample_interval=15) -> list[Dict[str, object]]:
         query_sql = f"""\
         SELECT 
             datetime(strftime('%Y-%m-%d %H:', timestamp) || printf('%02d', (strftime('%M', timestamp) / {sample_interval}) * {sample_interval}), 'localtime') AS interval,
@@ -60,4 +67,16 @@ class SQLiteTable:
         """
         cursor = self.database.conn.execute(query_sql)
         rows = cursor.fetchall()[::-1]  # Reverse to get oldest first
-        return [{"timestamp": row[0], column: row[1]} for row in rows]
+        return [row[1] for row in rows]
+
+
+def main():
+    database = SQLiteDatabase("solarcontrol.db")
+    db_table = SQLiteTable(database=database, name='main', columns=['power_pv', 'power_fridge', 'power_dishwasher', 'temperature'])        
+    print(db_table.latest_value("power_pv"))
+    print(db_table.latest_n_aggregate("power_pv", n=5, aggregate="AVG", sample_interval=15))
+    database.close()
+
+
+if __name__ == "__main__":
+    main()

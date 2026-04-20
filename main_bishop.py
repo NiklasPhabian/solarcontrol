@@ -10,7 +10,7 @@ from temperature_sensor import TemperatureSensor
 config = Config('config_bishop.ini')
 
 timezone_str = config['timezone']['tz']
-pst = dateutil.tz.gettz(timezone_str)
+timezone = dateutil.tz.gettz(timezone_str)
 
 # Database setup
 db_path = config['sqlite']['db_path']
@@ -35,7 +35,7 @@ port = config['display']['port']
 LOG_INTERVAL = datetime.timedelta(minutes=1)
 
 async def main() -> None:    
-    last_log = datetime.datetime.min.replace(tzinfo=pst)
+    last_log = datetime.datetime.min.replace(tzinfo=timezone)
 
     meter_pv = KasaEnergyMeter(host=host_pv, username=username, password=password)
     meter_fridge = KasaEnergyMeter(host=host_fridge, username=username, password=password)
@@ -46,11 +46,11 @@ async def main() -> None:
 
     database = SQLiteDatabase(db_path=db_path)
     db_table = SQLiteTable(database=database, name=table_name, columns=['power_pv', 'power_fridge', 'power_dishwasher', 'temperature'])
-    db_table.create_table_if_not_exists()
+    db_table.create_if_not_exists()
     
     try:
         while True:
-            now = datetime.datetime.now(pst)
+            now = datetime.datetime.now(timezone)
             timestamp = now.isoformat()
 
             power_pv = await meter_pv.get_power()
@@ -71,7 +71,7 @@ async def main() -> None:
                 bars = db_table.latest_n_resampled(n=60, column="power_pv", aggregate="AVG", sample_interval=15)   
                 last_log = now
             
-            display.show_chart_with_last_value(value=power_pv, bars=bars)                    
+            display.show_chart_with_last_value(value=power_pv, unit='W', bars=bars)                 
             print(row)
 
             await asyncio.sleep(10)

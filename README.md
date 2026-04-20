@@ -130,13 +130,14 @@ Reboot and verify with:
 ls /sys/bus/w1/devices/
 ```
 
-#### Identification Notes for my BWWP system:
+#### Identification Notes 
 
-| ID                | Cable Color   |
-| :--               | :--           |
-| 28-3ce1d44312b4   | White         |
-| 28-3ce1d4432b6f   | Black         |
-| 28-3ce1d4438ff7   | Blue          |
+| ID                | Sensor                |
+| :--               | :--                   |
+| 28-3ce1d44312b4   | Haslach White         |
+| 28-3ce1d4432b6f   | Haslach Black         |
+| 28-3ce1d4438ff7   | Haslach Blue          |
+| 28-3ce1d4431e7c   | Bishop Solar          |
 
 
 # Making pngs
