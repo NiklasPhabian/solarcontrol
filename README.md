@@ -139,10 +139,6 @@ ls /sys/bus/w1/devices/
 
 # Making pngs
 
-```bash
-pip install pandas==1.5.3
-```
-
 ## Serving Plotter images with nginx
 
 1. Ensure `plotter.py` writes images to `plots/` (the repository is already configured to create this directory automatically).
