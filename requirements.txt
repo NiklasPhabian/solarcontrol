@@ -1,0 +1,4 @@
+python-kasa
+cryptography<42
+luma.oled
+matplotlib

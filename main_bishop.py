@@ -32,7 +32,7 @@ indoor_sensor_id = config['temp_sensors']['indoor']
 address = config['display']['address']
 port = config['display']['port']
 
-LOG_INTERVAL = datetime.timedelta(minutes=1)
+LOG_INTERVAL = datetime.timedelta(minutes=5)
 
 async def main() -> None:    
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
@@ -68,7 +68,7 @@ async def main() -> None:
 
             if now - last_log >= LOG_INTERVAL:
                 db_table.insert_row(row)        
-                bars = db_table.latest_n_resampled(n=60, column="power_pv", aggregate="AVG", sample_interval=15)   
+                bars = db_table.latest_n_resampled_values(n=60, column="power_pv", aggregate="AVG", sample_interval=15)   
                 last_log = now
             
             display.show_chart_with_last_value(value=power_pv, unit='W', bars=bars)                 

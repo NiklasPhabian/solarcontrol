@@ -1,24 +1,29 @@
 # Install
 
+## Dependencies
+
 ```bash
+sudo apt install i2c-tools
+sudo apt install libjpeg-dev
+sudo apt install libopenblas0
+```
+
+```bash
+set INSTALLDIR /opt/solarcontrol
 cd solarcontrol
-sudo mkdir -p /opt/solarcontrol
-#sudo cp -r . /opt/solarcontrol
-sudo ln -s "$(pwd -P)" /opt/solarcontrol
-
-sudo chown -R $USER:$USER /opt/solarcontrol
+sudo mkdir -p $INSTALLDIR
+#sudo cp -r . $INSTALLDIR/app
+sudo ln -s (pwd -P) $INSTALLDIR/app
+sudo chown -R $USER:$USER $INSTALLDIR
 ```
 
 ```bash
-cd /opt/solarcontrol
+cd $INSTALLDIR
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate.fish
 pip install --upgrade pip
+pip install -r app/requirements.txt
 ```
-
-# install dependencies
-pip install -r requirements.txt
-
 
 ## Service
 Create the systemd unit from the template in this repository:
@@ -27,19 +32,11 @@ Create the systemd unit from the template in this repository:
 sudo cp solarcontrol.service /etc/systemd/system/solarcontrol.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now solarcontrol.service
-sudo systemctl daemon-reload
+sudo systemctl status solarcontrol
 journalctl -u solarcontrol -f
 ```
 
 # Development 
-## Env setup
-```bash
-sudo mkdir -p /opt/solarcontrol
-sudo chown -R $USER:$USER /opt/solarcontrol
-python3 -m venv /opt/solarcontrol/venv
-source /opt/solarcontrol/venv/bin/activate.fish
-pip install --upgrade pip
-```
 
 
 ## Python-kasa
@@ -145,3 +142,24 @@ ls /sys/bus/w1/devices/
 ```bash
 pip install pandas==1.5.3
 ```
+
+## Serving Plotter images with nginx
+
+1. Ensure `plotter.py` writes images to `plots/` (the repository is already configured to create this directory automatically).
+2. Copy `nginx/plotter_images.conf` to your nginx configuration directory, for example:
+
+```bash
+sudo cp nginx/plotter_images.conf /etc/nginx/sites-available/solarcontrol_plots
+sudo ln -s /etc/nginx/sites-available/solarcontrol_plots /etc/nginx/sites-enabled/
+```
+
+3. Update the `alias` path in `/etc/nginx/sites-available/solarcontrol_plots` if your app is installed in a different location.
+4. Reload nginx:
+
+```bash
+sudo systemctl reload nginx
+```
+
+5. Access the generated images at `http://<server>:8080/plots/`.
+
+If you want nginx to serve the images from the repo directly during development, set the alias path to the repo's `plots/` folder.

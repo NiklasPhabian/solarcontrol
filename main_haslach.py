@@ -84,7 +84,7 @@ async def main():
 
             if now - last_log >= LOG_INTERVAL:
                 table.insert_row(row)
-                power_bars = table.latest_n_resampled(n=60, column="power", aggregate="AVG", sample_interval=15)                   
+                power_bars = table.latest_n_resampled_values(n=60, column="power", aggregate="AVG", sample_interval=15)                   
                 last_log = now
             
             display1.show_bar_chart(bars=power_bars, value=power, unit='W',)

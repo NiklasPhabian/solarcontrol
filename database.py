@@ -55,7 +55,7 @@ class SQLiteTable:
             return dict(zip(["timestamp"] + self.columns, row))
         return None
     
-    def latest_n_resampled(self, column, n=60, aggregate="AVG", sample_interval=15) -> list[Dict[str, object]]:
+    def latest_n_resampled_values(self, column, n=60, aggregate="AVG", sample_interval=15) -> list[Dict[str, object]]:
         query_sql = f"""\
         SELECT 
             datetime(strftime('%Y-%m-%d %H:', timestamp) || printf('%02d', (strftime('%M', timestamp) / {sample_interval}) * {sample_interval}), 'localtime') AS interval,
@@ -68,6 +68,20 @@ class SQLiteTable:
         cursor = self.database.conn.execute(query_sql)
         rows = cursor.fetchall()[::-1]  # Reverse to get oldest first
         return [row[1] for row in rows]
+    
+    def resampled_timeseries(self, column, start_time, end_time, sample_interval=15) -> list[Dict[str, object]]:
+        query_sql = f"""\
+        SELECT 
+            datetime(strftime('%Y-%m-%d %H:', timestamp) || printf('%02d', (strftime('%M', timestamp) / {sample_interval}) * {sample_interval}), 'localtime') AS interval,
+            AVG({column}) AS value
+        FROM {self.name}
+        WHERE timestamp BETWEEN ? AND ?
+        GROUP BY interval
+        ORDER BY interval;
+        """
+        cursor = self.database.conn.execute(query_sql, (start_time.isoformat(), end_time.isoformat()))
+        rows = cursor.fetchall()
+        return [{"timestamp": row[0], column: row[1]} for row in rows]
 
 
 def main():
