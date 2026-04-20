@@ -50,7 +50,7 @@ host = config['meter']['host']
 username = config['kasa']['username']
 password = config['kasa']['password']
 
-LOG_INTERVAL = datetime.timedelta(minutes=1)
+LOG_INTERVAL = datetime.timedelta(minutes=5)
 
 async def main():
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
@@ -91,7 +91,7 @@ async def main():
             display2.display_celsius(temp_blue)
 
             print(row)
-            await asyncio.sleep(10)
+            await asyncio.sleep(30)
 
     except KeyboardInterrupt:
              await meter.disconnect()
