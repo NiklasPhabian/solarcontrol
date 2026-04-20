@@ -71,8 +71,7 @@ async def main() -> None:
                 bars = db_table.latest_n_resampled_values(n=60, column="power_pv", aggregate="AVG", sample_interval=15)   
                 last_log = now
             
-            display.show_chart_with_last_value(value=power_pv, unit='W', bars=bars)                 
-            print(row)
+            display.show_chart_with_last_value(value=power_pv, unit='W', bars=bars)
 
             await asyncio.sleep(10)
     finally:
