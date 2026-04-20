@@ -21,7 +21,6 @@ class Config:
         self._parser.read(self.config_path)
         self.read()
 
-
     def __repr__(self):
         return self.config
     

@@ -52,6 +52,26 @@ class Display:
         with luma.core.render.canvas(self.device) as draw:
             self._draw_centered(draw, text, font=font)
 
+
+    def format_quantity(self, quantity, unit):
+        """
+        Format a quantity with its unit, using appropriate SI prefixes.
+        """
+        if quantity >= 1_000_000:
+            quantity /= 1_000_000
+            unit = 'M' + unit
+            return f"{quantity:.2f} {unit}"
+        elif quantity >= 1000:
+            quantity /= 1000
+            unit = 'k' + unit
+            return f"{quantity:.2f} {unit}"
+        elif quantity < 1:
+            quantity *= 1000
+            unit = 'm' + unit
+            return f"{quantity:.2f} {unit}"
+        else:
+            return f"{quantity:.1f} {unit}"
+
     def display_quantity(self, quantity, unit):
         """
         Display a quantity with its unit, centered on the OLED.
@@ -60,21 +80,7 @@ class Display:
             self.show_text("No data")
             return
         
-        if quantity >= 1_000_000:
-            quantity /= 1_000_000
-            unit = 'M' + unit
-            text = f"{quantity:.2f} {unit}"
-        elif quantity >= 1000:
-            quantity /= 1000
-            unit = 'k' + unit
-            text = f"{quantity:.2f} {unit}"
-        elif quantity < 1:
-            quantity *= 1000
-            unit = 'm' + unit
-            text = f"{quantity:.2f} {unit}"
-        else:
-            text = f"{quantity:.1f} {unit}"
-
+        text = self.format_quantity(quantity, unit)
         self.show_text(text)
 
     def display_celsius(self, temp_c):
@@ -114,7 +120,7 @@ class Display:
                 draw.rectangle([x, y, x + bar_width - spacing, self.device.height], fill="white")
 
 
-    def show_chart_with_last_value(self, bars, value=None):
+    def show_chart_with_last_value(self, bars, unit, value=None):
         """
         Display a bar chart at the bottom and the last value on top.
         data: list of numeric values
@@ -127,10 +133,7 @@ class Display:
         if value is None:
             value = bars[-1]
 
-        if value >= 1000:
-            text = f"{value / 1000:.2f} kW"
-        else:
-            text = f"{value:.1f} W"
+        text = self.format_quantity(value, unit)
 
         with luma.core.render.canvas(self.device) as draw:
             # Draw the text on top
