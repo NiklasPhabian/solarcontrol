@@ -12,41 +12,35 @@ import datetime
 
 timezone = tz.gettz('America/Los_Angeles')
 
-config = Config()
+config = Config('config_haslach.ini')
 
 # Controller
-on_threshold = config['controller']['feedin_threshold']
-off_threshold = config['controller']['consumption_threshold']
+on_threshold = config['controller']['on_threshold']
+off_threshold = config['controller']['off_threshold']
 min_on_seconds = config['controller']['min_on_seconds']
 min_off_seconds = config['controller']['min_off_seconds']
-controller = Controller(on_threshold=on_threshold, off_threshold=off_threshold, min_on_seconds=min_on_seconds, min_off_seconds=min_off_seconds)
 
 # Temperature probes
-temp_blue = config['temp_sensors']['blue']
-temp_black = config['temp_sensors']['black']
-temp_white = config['temp_sensors']['white']
-ts_blue = TemperatureSensor(temp_blue)
-ts_black = TemperatureSensor(temp_black)
-ts_white = TemperatureSensor(temp_white)
+probe_id_blue = config['temp_sensors']['blue']
+probe_id_black = config['temp_sensors']['black']
+probe_id_white = config['temp_sensors']['white']
 
 # Relay 
-pin = config['relay']['pin']
-relay = Relay(pin=pin)
+relay_pin = config['relay']['pin']
 
 # Displays
-address1 = config['display1']['address']
-address2 = config['display2']['address']
-port1 = config['display1']['port']
-port2 = config['display2']['port']
+display_address1 = config['display1']['address']
+display_address2 = config['display2']['address']
+display_port1 = config['display1']['port']
+display_port2 = config['display2']['port']
 
 # Database setup
 db_path = config['sqlite']['db_path']
 table_name = config['sqlite']['table_name']
-database = SQLiteDatabase(db_path=db_path, table_name=table_name)
+columns=['power', 'temperature_blue', 'temperature_black', 'temperature_white', 'controller_state']
 
 # Meter
-device = config['meter']['meter_device']
-host = config['meter']['host']
+meter_host = config['meter']['host']
 username = config['kasa']['username']
 password = config['kasa']['password']
 
@@ -54,47 +48,59 @@ LOG_INTERVAL = datetime.timedelta(minutes=5)
 
 async def main():
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
-    meter = KasaEnergyMeter(device=device, host=host, username=username, password=password)
-    display1 = Display(port=port1, address=address1)
-    display2 = Display(port=port2, address=address2)
-    database = SQLiteDatabase(db_path=db_path, table_name=table_name)
-    table = SQLiteTable(database=database, name=table_name, columns=['power', 'temperature_blue', 'temperature_black', 'temperature_white'])
+
+    power_meter = KasaEnergyMeter(host=meter_host, username=username, password=password)
+    temperature_sensor_blue = TemperatureSensor(serial=probe_id_blue)
+    temperature_sensor_black = TemperatureSensor(serial=probe_id_black)
+    temperature_sensor_white = TemperatureSensor(serial=probe_id_white)
+
+    display1 = Display(port=display_port1, address=display_address1)
+    display2 = Display(port=display_port2, address=display_address2)
+    
+    database = SQLiteDatabase(db_path=db_path)
+    table = SQLiteTable(database=database, name=table_name, columns=columns)
     table.create_if_not_exists()
+
+    controller = Controller(on_threshold=on_threshold, off_threshold=off_threshold, min_on_seconds=min_on_seconds, min_off_seconds=min_off_seconds)
+    relay = Relay(pin=relay_pin)
 
     try:
         while True:
             now = datetime.datetime.now(timezone)
             timestamp = now.isoformat()
                 
-            power = await meter.get_power()
-            state = controller.control(power)
-            relay.apply_state(state)
+            power = await power_meter.get_power()
 
-            temp_blue = ts_blue.get_temp()
-            temp_black = ts_black.get_temp()
-            temp_white = ts_white.get_temp()
+            temp_blue = temperature_sensor_blue.get_temp()
+            temp_black = temperature_sensor_black.get_temp()
+            temp_white = temperature_sensor_white.get_temp()
+
+            state = controller.control(temp_blue)
+            relay.apply_state(state)
 
             row = {
                     "timestamp": timestamp,
                     "power": power,
                     "temperature_blue": temp_blue,
                     "temperature_black": temp_black,
-                    "temperature_white": temp_white
+                    "temperature_white": temp_white,
+                    "controller_state": state
                 }
 
             if now - last_log >= LOG_INTERVAL:
                 table.insert_row(row)
-                power_bars = table.latest_n_resampled_values(n=60, column="power", aggregate="AVG", sample_interval=15)                   
+                power_bars = table.latest_n_resampled_values(n=60, column="power", aggregate="AVG", sample_interval=15)
+                temperature_bars = table.latest_n_resampled_values(n=60, column="temperature_blue", aggregate="AVG", sample_interval=15)
                 last_log = now
             
-            display1.show_bar_chart(bars=power_bars, value=power, unit='W',)
-            display2.display_celsius(temp_blue)
+            display1.show_chart_with_last_value(value=power, unit='W', bars=power_bars)
+            display2.show_chart_with_last_value(value=temp_blue, unit='°C', bars=temperature_bars)
+            #display2.display_celsius(temp_blue)
 
-            print(row)
-            await asyncio.sleep(30)
-
-    except KeyboardInterrupt:
-             await meter.disconnect()
+            #print(row)
+            await asyncio.sleep(15)
+    finally:
+             await power_meter.disconnect()
              database.close()
              relay.cleanup()
              display1.cleanup()
@@ -102,4 +108,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

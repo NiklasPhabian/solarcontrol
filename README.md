@@ -9,8 +9,8 @@ sudo apt install libopenblas0
 
 ## Install
 ```bash
+cd solarcontrol
 set INSTALLDIR /opt/solarcontrol
-cd $INSTALLDIR
 sudo mkdir -p $INSTALLDIR
 #sudo cp -r . $INSTALLDIR/app
 sudo ln -s (pwd -P) $INSTALLDIR/app
@@ -30,10 +30,10 @@ pip install -r app/requirements.txt
 Create the systemd unit from the template in this repository:
 
 ```bash
-sudo cp solarcontrol.service /etc/systemd/system/solarcontrol.service
+sudo cp solarcontrol.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now solarcontrol.service
-sudo systemctl daemon-reload
+sudo systemctl status solarcontrol
 journalctl -u solarcontrol -f
 ```
 

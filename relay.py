@@ -10,7 +10,7 @@ class Relay:
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin, GPIO.OUT)
 
-        self.active_high = True  # or False depending on relay
+        self.active_high = False  # or False depending on relay
         self.off_gpio_state = GPIO.HIGH if self.active_high else GPIO.LOW
         self.on_gpio_state = GPIO.LOW if self.active_high else GPIO.HIGH
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         while True:
             relay.turn_on()
             time.sleep(1)
-            relay.turn_off()
-            time.sleep(1)
+            #relay.turn_off()
+            #time.sleep(1)
     finally:
         GPIO.cleanup()
