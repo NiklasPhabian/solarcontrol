@@ -6,6 +6,7 @@ from database import SQLiteDatabase, SQLiteTable
 from energy_meter import KasaEnergyMeter
 from display import Display
 from temperature_sensor import TemperatureSensor
+from plotter import Plotter
 
 config = Config('config_bishop.ini')
 
@@ -33,9 +34,11 @@ address = config['display']['address']
 port = config['display']['port']
 
 LOG_INTERVAL = datetime.timedelta(minutes=5)
+PLOT_INTERVAL = datetime.timedelta(minutes=60)  
 
 async def main() -> None:    
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
+    last_plot = datetime.datetime.min.replace(tzinfo=timezone)
 
     meter_pv = KasaEnergyMeter(host=host_pv, username=username, password=password)
     meter_fridge = KasaEnergyMeter(host=host_fridge, username=username, password=password)
@@ -47,6 +50,8 @@ async def main() -> None:
     database = SQLiteDatabase(db_path=db_path)
     db_table = SQLiteTable(database=database, name=table_name, columns=['power_pv', 'power_fridge', 'power_dishwasher', 'temperature'])
     db_table.create_if_not_exists()
+
+    plotter = Plotter(db_table)
     
     try:
         while True:
@@ -70,7 +75,14 @@ async def main() -> None:
                 db_table.insert_row(row)        
                 bars = db_table.latest_n_resampled_values(n=60, column="power_pv", aggregate="AVG", sample_interval=15)   
                 last_log = now
-            
+
+            if now - last_plot >= PLOT_INTERVAL:
+                plotter.plot_power(column="power_pv", hours=24)
+                plotter.plot_power_by_hour(column="power_pv", days=7)
+                plotter.plot_daily_energy(column="power_pv", days=7)
+                plotter.plot_daily_trajectory(column="power_pv", days=7)
+                last_plot = now
+
             display.show_chart_with_last_value(value=power_pv, unit='W', bars=bars)
 
             await asyncio.sleep(10)

@@ -135,21 +135,58 @@ ls /sys/bus/w1/devices/
 
 ## Serving Plotter images with nginx
 
-1. Ensure `plotter.py` writes images to `plots/` (the repository is already configured to create this directory automatically).
-2. Copy `nginx/plotter_images.conf` to your nginx configuration directory, for example:
+The plotter generates PNG images and an HTML index page in the `www/` subdirectory. To serve these through nginx on port 80:
+
+1. Copy the nginx configuration:
 
 ```bash
 sudo cp nginx/plotter_images.conf /etc/nginx/sites-available/solarcontrol_plots
 sudo ln -s /etc/nginx/sites-available/solarcontrol_plots /etc/nginx/sites-enabled/
 ```
 
-3. Update the `alias` path in `/etc/nginx/sites-available/solarcontrol_plots` if your app is installed in a different location.
-4. Reload nginx:
+2. **Important**: Disable the default nginx site to avoid port 80 conflicts:
 
 ```bash
+sudo unlink /etc/nginx/sites-enabled/default
+```
+
+   *Why?* The default nginx installation includes a site that also listens on port 80. Having multiple sites on the same port causes conflicts.
+
+   **Alternative**: If you want to keep the default site, you can either:
+   - Use a different port (change `listen 80;` to `listen 8080;` in the config)
+   - Add a specific `server_name` directive to distinguish between sites
+
+3. Update the `alias` path in `/etc/nginx/sites-available/solarcontrol_plots` to point to your app's `www/` directory (if different from the default installation path).
+
+4. Test the configuration and reload nginx:
+
+```bash
+sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-5. Access the generated images at `http://<server>:8080/plots/`.
+5. Access the generated images and HTML gallery at `http://<server>/plots/`.
 
-If you want nginx to serve the images from the repo directly during development, set the alias path to the repo's `plots/` folder.
+### Troubleshooting
+
+If nginx fails to start or reload on your server:
+
+- **Port 80 conflict**: Check if another service is using port 80:
+  ```bash
+  sudo netstat -tlnp | grep :80
+  sudo lsof -i :80
+  ```
+
+- **Permission issues**: Ensure nginx can read the `www/` directory:
+  ```bash
+  sudo chown -R www-data:www-data /opt/solarcontrol/app/www/
+  ```
+
+- **SELinux/AppArmor**: If running on systems with security modules, ensure nginx has access to the directory.
+
+- **Test configuration**: Always test before reloading:
+  ```bash
+  sudo nginx -t
+  ```
+
+During development, you can serve directly from the repository by setting the alias to the repo's `www/` folder instead of the installation path.
