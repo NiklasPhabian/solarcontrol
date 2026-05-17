@@ -37,7 +37,6 @@ sudo systemctl status solarcontrol
 journalctl -u solarcontrol -f
 ```
 
-
 # Development 
 
 ## Python-kasa

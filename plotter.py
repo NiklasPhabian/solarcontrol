@@ -144,7 +144,7 @@ class Plotter:
         filename = f"{column}_daily_energy.png"
         self._save_plot(filename)
 
-    def plot_daily_trajectory(self, column, days=30):
+    def plot_daily_trajectory(self, column, days=30, start_hour=5, end_hour=20):
         """Plot the daily power trajectory with one line per day.
         
         Shows how power changes throughout the day by plotting quarter-hourly averages.
@@ -164,6 +164,7 @@ class Plotter:
             AVG({column}) AS avg_power
         FROM {self.db_table.name}
         WHERE timestamp BETWEEN ? AND ?
+        AND strftime('%H', timestamp) BETWEEN {start_hour} AND {end_hour}  -- Focus on daytime hours
         GROUP BY DATE(timestamp, 'localtime'), 
                  strftime('%H', timestamp, 'localtime'),
                  CAST(CAST(strftime('%M', timestamp, 'localtime') AS INTEGER) / 15 AS INTEGER) * 15

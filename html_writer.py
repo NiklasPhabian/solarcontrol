@@ -1,11 +1,13 @@
 import os
 
 
-def write_index_html(output_dir: str) -> None:
+def write_index_html(output_dir: str, power: float, temperature: float) -> None:
     """Generate an HTML index file displaying all PNG images in the output directory.
 
     Args:
         output_dir: Directory containing the PNG images and where index.html will be written
+        power: Current power value to display at the top of the page
+        temperature: Current temperature value to display at the top of the page
     """
     images = sorted(
         f for f in os.listdir(output_dir) if os.path.isfile(os.path.join(output_dir, f)) and f.lower().endswith(".png")
@@ -26,6 +28,9 @@ def write_index_html(output_dir: str) -> None:
         "  </style>",
         "</head>",
         "<body>",
+        "  <h1>Current Conditions</h1>",
+        f"  <p>{power} W</p>",
+        f"  <p>{temperature} °C</p>",
         "  <h1>SolarControl Plots</h1>",
         "  <p>Browse the generated plot images below.</p>",
     ]
@@ -42,3 +47,4 @@ def write_index_html(output_dir: str) -> None:
 
     with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as index_file:
         index_file.write("\n".join(html_lines))
+

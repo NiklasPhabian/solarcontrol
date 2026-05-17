@@ -164,18 +164,24 @@ class Display:
 
 
 if __name__ == '__main__':
-    import database
-    import config
-    
-    display = Display()
-    db_path = config.sqlite_db_path()
-    table_name = config.realtime_table_name()
+    from database import SQLiteDatabase, SQLiteTable
+    from config import Config
 
-    db = database.SQLiteDatabase(db_path, table_name)
+    config = Config('config_bishop.ini')
+
+    address = config['display']['address']
+    port = config['display']['port']
+    
+    display = Display(port=port, address=address)
+    db_path = config['sqlite']['db_path']
+    table_name = config['sqlite']['table_name']
+
+    database = SQLiteDatabase(db_path=db_path)
+    db_table = SQLiteTable(database=database, name=table_name, columns=['power_pv', 'power_fridge', 'power_dishwasher', 'temperature'])
     
     while True:
-        bars = [row['power'] for row in db.latest_n15mins(60)]
-        value = db.latest_realtime()['power']
-        display.show_chart_with_last_value(bars=bars, value=value)
+        bars = db_table.latest_n_resampled_values(n=60, column="power_pv", aggregate="AVG", sample_interval=15)   
+        value = db_table.latest_value("power_pv")
+        display.show_chart_with_last_value(bars=bars, value=value, unit='W')
         time.sleep(2)
         

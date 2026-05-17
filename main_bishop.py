@@ -7,6 +7,7 @@ from energy_meter import KasaEnergyMeter
 from display import Display
 from temperature_sensor import TemperatureSensor
 from plotter import Plotter
+import html_writer
 
 config = Config('config_bishop.ini')
 
@@ -78,14 +79,16 @@ async def main() -> None:
 
             if now - last_plot >= PLOT_INTERVAL:
                 plotter.plot_power(column="power_pv", hours=24)
-                plotter.plot_power_by_hour(column="power_pv", days=7)
-                plotter.plot_daily_energy(column="power_pv", days=7)
-                plotter.plot_daily_trajectory(column="power_pv", days=7)
+                plotter.plot_power_by_hour(column="power_pv", days=3)
+                plotter.plot_daily_energy(column="power_pv", days=100)
+                plotter.plot_daily_trajectory(column="power_pv", days=30)
                 last_plot = now
+
+            html_writer.write_index_html("www", power_pv, temperature)
 
             display.show_chart_with_last_value(value=power_pv, unit='W', bars=bars)
 
-            await asyncio.sleep(10)
+            await asyncio.sleep(10) 
     finally:
         await meter_pv.disconnect()
         await meter_fridge.disconnect()
