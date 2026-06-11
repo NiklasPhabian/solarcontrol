@@ -2,12 +2,15 @@ import asyncio
 from config import Config
 from energy_meter import KasaEnergyMeter
 from controller import Controller
+from modbus.devices import SHT20
 from relay import Relay
 from display import Display
 from database import SQLiteDatabase, SQLiteTable
 from dateutil import tz
 from temperature_sensor import TemperatureSensor
 import datetime
+import modbus.transport
+import modbus.devices
 
 
 timezone = tz.gettz('America/Los_Angeles')
@@ -44,6 +47,11 @@ meter_host = config['meter']['host']
 username = config['kasa']['username']
 password = config['kasa']['password']
 
+# Modbus
+modbus_controler1_port = config['modbus_controller']['port']
+sht_unit = config['SHT20']['unit']
+
+
 LOG_INTERVAL = datetime.timedelta(minutes=5)
 
 async def main():
@@ -53,6 +61,9 @@ async def main():
     temperature_sensor_blue = TemperatureSensor(serial=probe_id_blue)
     temperature_sensor_black = TemperatureSensor(serial=probe_id_black)
     temperature_sensor_white = TemperatureSensor(serial=probe_id_white)
+
+    controller = modbus.transport.ModbusController(port=modbus_controler1_port)
+    sht20 = modbus.devices.SHT20(controller, sht_unit)
 
     display1 = Display(port=display_port1, address=display_address1)
     display2 = Display(port=display_port2, address=display_address2)
@@ -75,6 +86,9 @@ async def main():
             temp_black = temperature_sensor_black.get_temp()
             temp_white = temperature_sensor_white.get_temp()
 
+            temp_sht = sht20.read_temperature()
+            humid_sht = sht20.read_humidity()
+
             state = controller.control(temp_blue)
             relay.apply_state(state)
 
@@ -84,7 +98,9 @@ async def main():
                     "temperature_blue": temp_blue,
                     "temperature_black": temp_black,
                     "temperature_white": temp_white,
-                    "controller_state": state
+                    "controller_state": state,
+                    "temperature_sht": temp_sht,
+                    "humidity_sht": humid_sht
                 }
 
             if now - last_log >= LOG_INTERVAL:
@@ -95,9 +111,8 @@ async def main():
             
             display1.show_chart_with_last_value(value=power, unit='W', bars=power_bars)
             display2.show_chart_with_last_value(value=temp_blue, unit='°C', bars=temperature_bars)
-            #display2.display_celsius(temp_blue)
 
-            #print(row)
+            print(row)
             await asyncio.sleep(15)
     finally:
              await power_meter.disconnect()

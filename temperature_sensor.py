@@ -20,6 +20,7 @@ if __name__ == '__main__':
     pst = tz.gettz('America/Los_Angeles')
 
     sensor_id = '28-3ce1d4438ff7'
+    #sensor_id = '28-3ce1d4432b6f'
     sensor = TemperatureSensor(serial=sensor_id)
 
     while True:
