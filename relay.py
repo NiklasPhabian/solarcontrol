@@ -31,6 +31,9 @@ class Relay:
         self.on = True
         GPIO.output(self.pin, self.on_gpio_state)
 
+    def cleanup(self):
+        GPIO.cleanup()
+
 
 if __name__ == "__main__":
     import time
@@ -39,7 +42,7 @@ if __name__ == "__main__":
         while True:
             relay.turn_on()
             time.sleep(1)
-            #relay.turn_off()
-            #time.sleep(1)
+            relay.turn_off()
+            time.sleep(1)
     finally:
         GPIO.cleanup()
