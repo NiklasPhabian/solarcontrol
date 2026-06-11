@@ -4,3 +4,4 @@ config_bishop.ini
 config_haslach.ini
 plots/
 solarcontrol.service
+www/*.png
