@@ -5,3 +5,4 @@ config_haslach.ini
 plots/
 solarcontrol.service
 www/*.png
+www/index.html
