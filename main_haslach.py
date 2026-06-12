@@ -11,6 +11,7 @@ from temperature_sensor import TemperatureSensor
 import datetime
 import modbus.transport
 import modbus.devices
+from html_writer import HTMLWriter
 
 
 timezone = tz.gettz('America/Los_Angeles')
@@ -53,9 +54,11 @@ sht_unit = config['SHT20']['unit']
 
 
 LOG_INTERVAL = datetime.timedelta(minutes=5)
+PLOT_INTERVAL = datetime.timedelta(hours=1)
 
-async def main():
+async def main(interactive=False):
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
+    last_plot = datetime.datetime.min.replace(tzinfo=timezone)
 
     power_meter = KasaEnergyMeter(host=meter_host, username=username, password=password)
     temperature_sensor_blue = TemperatureSensor(serial=probe_id_blue)
@@ -108,11 +111,21 @@ async def main():
                 power_bars = table.latest_n_resampled_values(n=60, column="power", aggregate="AVG", sample_interval=15)
                 temperature_bars = table.latest_n_resampled_values(n=60, column="temperature_blue", aggregate="AVG", sample_interval=15)
                 last_log = now
+
+            if now - last_plot >= PLOT_INTERVAL:
+                plot_files = []
+                plot_files.append(plotter.plot_temperature(column="temperature_blue", hours=24))
+                last_plot = now
+
+            html_writer = HTMLWriter(output_dir=output_dir, plot_files=plot_files, current_conditions=row)
+            html_writer.write_html()
             
             display1.show_chart_with_last_value(value=power, unit='W', bars=power_bars)
             display2.show_chart_with_last_value(value=temp_blue, unit='°C', bars=temperature_bars)
 
-            print(row)
+            if interactive:
+                print(row)
+
             await asyncio.sleep(15)
     finally:
              await power_meter.disconnect()
@@ -123,4 +136,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(interactive=True))

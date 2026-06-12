@@ -1,5 +1,6 @@
 import datetime
 import asyncio
+import os
 import dateutil
 from config import Config
 from database import SQLiteDatabase, SQLiteTable
@@ -7,7 +8,7 @@ from energy_meter import KasaEnergyMeter
 from display import Display
 from temperature_sensor import TemperatureSensor
 from plotter import Plotter
-import html_writer
+from html_writer import HTMLWriter
 
 config = Config('config_bishop.ini')
 
@@ -37,7 +38,8 @@ port = config['display']['port']
 LOG_INTERVAL = datetime.timedelta(minutes=5)
 PLOT_INTERVAL = datetime.timedelta(minutes=60)  
 
-async def main() -> None:    
+
+async def main(interactive=False) -> None:    
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
     last_plot = datetime.datetime.min.replace(tzinfo=timezone)
 
@@ -53,6 +55,8 @@ async def main() -> None:
     db_table.create_if_not_exists()
 
     plotter = Plotter(db_table)
+    output_dir = "www"
+    bars = []  # Initialize bars list
     
     try:
         while True:
@@ -78,15 +82,22 @@ async def main() -> None:
                 last_log = now
 
             if now - last_plot >= PLOT_INTERVAL:
-                plotter.plot_power(column="power_pv", hours=24)
-                plotter.plot_power_by_hour(column="power_pv", days=3)
-                plotter.plot_daily_energy(column="power_pv", days=100)
-                plotter.plot_daily_trajectory(column="power_pv", days=30)
+                plot_files = []
+                plot_files.append(plotter.plot_timeseries("power_pv", hours=24))
+                plot_files.append(plotter.plot_daily_energy("power_pv", days=30))  
+                plot_files.append(plotter.plot_avg_by_hours_of_day("power_pv", days=7))
+                plot_files.append(plotter.plot_daily_trajectory("power_pv", days=30)) 
+                plot_files.append(plotter.plot_timeseries("temperature", hours=24))
+                plot_files.append(plotter.plot_daily_trajectory("temperature", days=30, start_hour=0, end_hour=23)) 
                 last_plot = now
-
-            html_writer.write_index_html("www", power_pv, temperature)
-
+            
+            html_writer = HTMLWriter(output_dir=output_dir, plot_files=plot_files, current_conditions=row)
+            html_writer.write_html()
+    
             display.show_chart_with_last_value(value=power_pv, unit='W', bars=bars)
+
+            if interactive:
+                print(row)
 
             await asyncio.sleep(10) 
     finally:
@@ -96,4 +107,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(interactive=True))

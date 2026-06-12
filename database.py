@@ -75,7 +75,7 @@ class SQLiteTable:
             datetime(strftime('%Y-%m-%d %H:', timestamp) || printf('%02d', (strftime('%M', timestamp) / {sample_interval}) * {sample_interval}), 'localtime') AS interval,
             AVG({column}) AS value
         FROM {self.name}
-        WHERE timestamp BETWEEN ? AND ?
+        WHERE datetime(timestamp) BETWEEN datetime(?) AND datetime(?)
         GROUP BY interval
         ORDER BY interval;
         """
