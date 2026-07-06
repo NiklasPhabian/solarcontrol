@@ -38,6 +38,7 @@ port = config['display']['port']
 LOG_INTERVAL = datetime.timedelta(minutes=5)
 PLOT_INTERVAL = datetime.timedelta(minutes=60)  
 
+output_dir = "www"
 
 async def main(interactive=False) -> None:    
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
@@ -55,8 +56,6 @@ async def main(interactive=False) -> None:
     db_table.create_if_not_exists()
 
     plotter = Plotter(db_table)
-    output_dir = "www"
-    bars = []  # Initialize bars list
     
     try:
         while True:
@@ -99,11 +98,13 @@ async def main(interactive=False) -> None:
             if interactive:
                 print(row)
 
-            await asyncio.sleep(10) 
+            await asyncio.sleep(15) 
     finally:
         await meter_pv.disconnect()
         await meter_fridge.disconnect()
         await meter_dishwasher.disconnect()
+        database.close()        
+    
 
 
 if __name__ == "__main__":

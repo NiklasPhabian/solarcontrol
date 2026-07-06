@@ -20,14 +20,14 @@ class Plotter:
     OUTPUT_DIR = "www"
     _figsize = (16, 9)
     _dpi = 75
-    
+
     def __init__(self, db_table):
         self.db_table = db_table
         os.makedirs(self.OUTPUT_DIR, exist_ok=True)
 
     def _get_time_range(self, hours=None, days=None):
         """Get start and end time based on hours or days.
-        
+
         Returns timezone-aware datetime objects in UTC.
         """
         end_time = datetime.now(timezone.utc)

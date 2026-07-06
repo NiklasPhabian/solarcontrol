@@ -7,6 +7,7 @@ TABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class SQLiteDatabase:
+
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
         self.conn = sqlite3.connect(self.db_path)
@@ -22,7 +23,7 @@ class SQLiteDatabase:
 
 
 class SQLiteTable:
-    
+
     def __init__(self, database, name, columns):
         self.database = database
         self.name = name
@@ -33,7 +34,7 @@ class SQLiteTable:
         create_sql = f"CREATE TABLE IF NOT EXISTS {self.name} (timestamp TEXT PRIMARY KEY, {columns_def})"
         self.database.conn.execute(create_sql)
         self.database.conn.commit()
-    
+
     def insert_row(self, row: dict) -> None:
         columns = ", ".join(row.keys())
         placeholders = ", ".join(f":{key}" for key in row.keys())

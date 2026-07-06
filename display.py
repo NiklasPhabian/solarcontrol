@@ -57,15 +57,15 @@ class Display:
         """
         Format a quantity with its unit, using appropriate SI prefixes.
         """
-        if quantity >= 1_000_000:
+        if abs(quantity) >= 1_000_000:
             quantity /= 1_000_000
             unit = 'M' + unit
             return f"{quantity:.2f} {unit}"
-        elif quantity >= 1000:
+        elif abs(quantity) >= 1000:
             quantity /= 1000
             unit = 'k' + unit
             return f"{quantity:.2f} {unit}"
-        elif quantity < 1:
+        elif abs(quantity) < 1:
             quantity *= 1000
             unit = 'm' + unit
             return f"{quantity:.2f} {unit}"
@@ -79,7 +79,7 @@ class Display:
         if quantity is None:
             self.show_text("No data")
             return
-        
+
         text = self.format_quantity(quantity, unit)
         self.show_text(text)
 
@@ -119,8 +119,101 @@ class Display:
                 y = self.device.height - bar_height
                 draw.rectangle([x, y, x + bar_width - spacing, self.device.height], fill="white")
 
-
     def show_chart_with_last_value(self, bars, unit, value=None):
+        """
+        Display a bar chart at the bottom and the last value on top.
+
+        Supports:
+          - all positive values
+          - all negative values
+          - mixed positive/negative values
+        """
+
+        if not bars:
+            self.show_text("No data")
+            return
+
+        if value is None:
+            value = bars[-1]
+
+        text = self.format_quantity(value, unit)
+
+        with luma.core.render.canvas(self.device) as draw:
+            # -----------------------------
+            # Draw value text
+            # -----------------------------
+            font = self._best_font(text, self.device.width, 12)
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+            x_text = (self.device.width - text_width) // 2
+            draw.text((x_text, 0), text, font=font, fill="white")
+
+            # -----------------------------
+            # Chart dimensions
+            # -----------------------------
+            chart_top = text_height + 5
+            chart_bottom = self.device.height - 1
+            chart_height = chart_bottom - chart_top + 1
+
+            num_bars = len(bars)
+            bar_width = max(1, self.device.width // num_bars)
+            spacing = 1
+
+            # -----------------------------
+            # Scale
+            # -----------------------------
+            min_val = min(bars)
+            max_val = max(bars)
+
+            # Always include zero
+            min_val = min(min_val, 0)
+            max_val = max(max_val, 0)
+
+            if min_val == max_val:
+                max_val += 1
+
+            value_range = max_val - min_val
+
+            # Pixel coordinate of the zero line
+            zero_y = chart_top + int(max_val / value_range * (chart_height - 1))
+
+            # Clamp to display
+            zero_y = max(chart_top, min(chart_bottom, zero_y))
+
+            # Draw zero line if both positive and negative values exist
+            if min_val < 0 < max_val:
+                draw.line(
+                    [(0, zero_y), (self.device.width - 1, zero_y)],
+                    fill="white",
+                )
+
+            # -----------------------------
+            # Draw bars
+            # -----------------------------
+            for i, val in enumerate(bars):
+                x0 = i * bar_width + spacing // 2
+                x1 = x0 + bar_width - spacing
+
+                # Pixel position of the value
+                y_val = chart_top + int(
+                    (max_val - val) / value_range * (chart_height - 1)
+                )
+
+                if val >= 0:
+                    y0 = y_val
+                    y1 = zero_y
+                else:
+                    y0 = zero_y
+                    y1 = y_val
+
+                draw.rectangle(
+                    [x0, min(y0, y1), x1, max(y0, y1)],
+                    fill="white",
+                )
+
+    def show_chart_with_last_value_old(self, bars, unit, value=None):
         """
         Display a bar chart at the bottom and the last value on top.
         data: list of numeric values
@@ -137,7 +230,7 @@ class Display:
 
         with luma.core.render.canvas(self.device) as draw:
             # Draw the text on top
-            font = self._best_font(text, self.device.width, 12)  
+            font = self._best_font(text, self.device.width, 12)
             bbox = draw.textbbox((0, 0), text, font=font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
@@ -171,17 +264,17 @@ if __name__ == '__main__':
 
     address = config['display']['address']
     port = config['display']['port']
-    
+
     display = Display(port=port, address=address)
     db_path = config['sqlite']['db_path']
     table_name = config['sqlite']['table_name']
 
     database = SQLiteDatabase(db_path=db_path)
     db_table = SQLiteTable(database=database, name=table_name, columns=['power_pv', 'power_fridge', 'power_dishwasher', 'temperature'])
-    
+
     while True:
         bars = db_table.latest_n_resampled_values(n=60, column="power_pv", aggregate="AVG", sample_interval=15)   
         value = db_table.latest_value("power_pv")
         display.show_chart_with_last_value(bars=bars, value=value, unit='W')
         time.sleep(2)
-        
+

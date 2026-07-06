@@ -3,18 +3,18 @@ import datetime
 
 
 class Controller:
-    
+
     def __init__(self, on_threshold, off_threshold, min_on_seconds, min_off_seconds):
         self.turned_on = False
         self.time_turned_on = None
         self.time_turned_off = datetime.datetime.now()
-        
+
         self.min_on_seconds = int(min_on_seconds)
         self.min_off_seconds = int(min_off_seconds)
 
         self.on_threshold = float(on_threshold)
         self.off_threshold = float(off_threshold)
-        
+
     def seconds_since_on(self):
         return (datetime.datetime.now()-self.time_turned_on).total_seconds()
 
@@ -46,3 +46,25 @@ class Controller:
             self.turned_on = False
             self.time_turned_off = datetime.datetime.now()
         return self.turned_on
+
+
+async def main():
+    from energy_meter import EcoTracker
+    import time
+    from relay import Relay
+
+    power_meter = EcoTracker(host='192.168.178.115')
+    controller = Controller(on_threshold=-500, off_threshold=0, min_on_seconds=10, min_off_seconds=10)
+    relay = Relay(pin='17')
+
+    while True:
+        power = await power_meter.get_power()
+        state = controller.control(power)
+        relay.apply_state(state)
+        print(f'{power}, {state}')
+        time.sleep(5)
+
+
+if __name__ == '__main__':
+    import asyncio
+    asyncio.run(main())

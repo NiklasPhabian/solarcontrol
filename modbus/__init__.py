@@ -20,13 +20,15 @@ __all__ = [
     "ModbusDevice",
     "SHT20",
     "SDM230",
+    "SDM630",
+    "Finder7M38_8_400",
 ]
 
 
 def __getattr__(name: str):
     # Lazily import device classes to avoid importing modbus.devices when the
     # package is imported (avoids runpy RuntimeWarning when running modules).
-    if name in ("ModbusDevice", "SHT20", "SDM230"):
+    if name in ("ModbusDevice", "SHT20", "SDM230", "SDM630", "Finder7M38_8_400"):
         from . import devices
 
         return getattr(devices, name)
@@ -34,4 +36,4 @@ def __getattr__(name: str):
 
 
 def __dir__():
-    return sorted(list(globals().keys()) + ["ModbusDevice", "SHT20", "SDM230"])
+    return sorted(list(globals().keys()) + ["ModbusDevice", "SHT20", "SDM230", "SDM630", "Finder7M38_8_400"])

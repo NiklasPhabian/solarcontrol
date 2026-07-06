@@ -58,6 +58,7 @@ class HTMLWriter:
         """Generate an HTML section displaying the current conditions."""
         current_conditions_html = "<table border='1'>"        
         for key, value in self.current_conditions.items():
+            value = f"{value:.2f}" if isinstance(value, float) else str(value)
             current_conditions_html += f"""<tr><td >{key}</td><td align="right">{value} {self.get_unit(key)}</td></tr>"""
         current_conditions_html += "</table>"
 

@@ -1,6 +1,7 @@
 import kasa
 import datetime
 import asyncio
+import requests
 
 
 class KasaEnergyMeter:
@@ -10,7 +11,7 @@ class KasaEnergyMeter:
         self.device = None
         self.energy_module = None
         self.credentials = kasa.Credentials(username=username, password=password)
-        self.loop = asyncio.new_event_loop()        
+        self.loop = asyncio.new_event_loop()
 
     async def connect(self):
         """
@@ -28,7 +29,7 @@ class KasaEnergyMeter:
             raise RuntimeError("Device does not support energy monitoring.")
 
         self.energy_module = self.device.modules[kasa.Module.Energy]
-    
+
     async def reconnect(self):
         try:
             await self.disconnect()
@@ -37,7 +38,7 @@ class KasaEnergyMeter:
 
         await asyncio.sleep(1)  # small backoff
         await self.connect()
-            
+
     async def get_power_unsafe(self) -> dict:
         """
         Returns realtime energy data as dict.
@@ -49,15 +50,15 @@ class KasaEnergyMeter:
         realtime = await self.energy_module.get_status()
 
         return realtime.power
-    
+
     async def get_power(self):
         try:
             return await self.get_power_unsafe()
-        except Exception as e:            
+        except Exception as e:
             await self.reconnect()
 
             return await self.get_power_unsafe()
-    
+
     async def disconnect(self) -> None:
         """Disconnect and release kasa device network resources."""
         if self.device is not None:
@@ -66,35 +67,37 @@ class KasaEnergyMeter:
             self.energy_module = None
 
 
-class EcoTrackerEnergyMeter:
+class EcoTracker:
     """Energy monitor implementation for EcoTracker devices."""
 
     def __init__(self, host: str):
         self.host = host
 
-    def get_power_async():
-        # Placeholder for actual implementation to fetch power data from EcoTracker
-        return 0.0  # Replace with actual power value
+    async def get_power(self):
+        endpoint = f'http://{self.host}/v1/json'
+        ret = requests.get(endpoint)
+        json = ret.json()
+        return json['power']
 
 
-async def main():
+async def main_kasa():
     from dateutil import tz
-    from config import Config    
-    
+    from config import Config
+
     pst = tz.gettz('PST')
 
-    config = Config('config_bishop.ini')    
+    config = Config('config_bishop.ini')
     host_pv_meter = config['meter_pv']['host']
     host_fridge_meter = config['meter_fridge']['host']
     host_dishwasher_meter = config['meter_dishwasher']['host']
     username = config['kasa']['username']
     password = config['kasa']['password']
-    
+
     meter_pv = KasaEnergyMeter(host=host_pv_meter, username=username, password=password)
     meter_fridge = KasaEnergyMeter(host=host_fridge_meter, username=username, password=password)
     meter_dishwasher = KasaEnergyMeter(host=host_dishwasher_meter, username=username, password=password)
 
-    try:        
+    try:
         while True:
             power_pv = await meter_pv.get_power()
             power_fridge = await meter_fridge.get_power()
@@ -111,5 +114,11 @@ async def main():
         await meter_dishwasher.disconnect()
 
 
+async def main_ecotracker():
+    meter = EcoTracker(host='192.168.178.115')
+    power = meter.get_power()
+    print(power)
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main_ecotracker())
