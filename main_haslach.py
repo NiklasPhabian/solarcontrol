@@ -19,10 +19,11 @@ timezone = tz.gettz('Europe/Berlin')
 config = Config('config_haslach.ini')
 
 # Controller
-on_threshold = config['controller']['on_threshold']
-off_threshold = config['controller']['off_threshold']
-min_on_seconds = config['controller']['min_on_seconds']
-min_off_seconds = config['controller']['min_off_seconds']
+hp_nominal_power_min = config['controller']['hp_nominal_power_min']
+hp_nominal_power_max = config['controller']['hp_nominal_power_max']
+el_nominal_power = config['controller']['el_nominal_power']
+safety_margin = config['controller']['safety_margin']
+min_hp_off_seconds = config['controller']['min_hp_off_seconds']
 
 # Temperature probes
 probe_id_blue = config['temp_sensors']['blue']
@@ -48,10 +49,13 @@ meter_host = config['ecotracker']['host']
 
 # Modbus
 modbus_controler1_port = config['modbus_controller']['port']
-slave_address_sht20 = config['SHT20']['slave_address']
-slave_address_sdm230_bwwp = config['SDM230_bwwp']['slave_address']
-slave_address_sdm230_mypv = config['SDM230_mypv']['slave_address']
-slave_address_finder7m = config['Finder7M']['slave_address']
+slave_address_sht20 = config['modbus_slave_addresses']['sht20']
+slave_address_sdm230_bwwp = config['modbus_slave_addresses']['sdm230_bwwp']
+slave_address_sdm230_mypv = config['modbus_slave_addresses']['sdm230_mypv']
+slave_address_finder7m = config['modbus_slave_addresses']['finder7m']
+slave_address_sdm72dm = config['modbus_slave_addresses']['sdm72dm']
+slave_address_fhs280 = config['modbus_slave_addresses']['fhs280']
+slave_address_waveshare_relay = config['modbus_slave_addresses']['waveshare_relay']
 
 # Time settings
 LOG_INTERVAL = datetime.timedelta(minutes=5)
@@ -74,6 +78,9 @@ async def main(interactive=False):
     sdm_bwwp = modbus.devices.SDM230(modbus_controller, slave_address_sdm230_bwwp)
     sdm_mypv = modbus.devices.SDM230(modbus_controller, slave_address_sdm230_mypv)
     finder7m = modbus.devices.Finder7M38_8_400(modbus_controller, slave_address_finder7m)
+    sdm72dm = modbus.devices.SDM72DM_V2(modbus_controller, slave_address_sdm72dm)
+    fhs280 = modbus.devices.FHS280(modbus_controller, slave_address_fhs280)
+    fan_relay = modbus.devices.WaveshareESP32S3Relay1CH(modbus_controller, slave_address_waveshare_relay)
 
     display1 = Display(port=display_port1, address=display_address1)
     display2 = Display(port=display_port2, address=display_address2)
@@ -84,7 +91,11 @@ async def main(interactive=False):
 
     plotter = Plotter(table)
 
-    controller = Controller(on_threshold=on_threshold, off_threshold=off_threshold, min_on_seconds=min_on_seconds, min_off_seconds=min_off_seconds)
+    bwwp_controller = Controller(hp_nominal_power_min=hp_nominal_power_min,
+                                 hp_nominal_power_max=hp_nominal_power_max,
+                                 el_nominal_power=el_nominal_power,
+                                 safety_margin=safety_margin,
+                                 min_hp_off_seconds=min_hp_off_seconds)
     relay = Relay(pin=relay_pin)
 
     try:
@@ -96,6 +107,10 @@ async def main(interactive=False):
             power_bwwp = sdm_bwwp.read_active_power()
             power_mypv = sdm_mypv.read_active_power()
             power_wp = finder7m.read_total_active_power()
+            power_pv = sdm72dm.read_total_active_power()
+            power_pv_l1 = sdm72dm.read_active_power_l1()
+            power_pv_l2 = sdm72dm.read_active_power_l2()
+            power_pv_l3 = sdm72dm.read_active_power_l3()
 
             temp_blue = temperature_sensor_blue.get_temp()
             temp_black = temperature_sensor_black.get_temp()
@@ -104,8 +119,33 @@ async def main(interactive=False):
             temp_sht = sht20.read_temperature()
             humid_sht = sht20.read_humidity()
 
-            state = controller.control(power_mains)
-            relay.apply_state(state)
+            bwwp_controller_state = bwwp_controller.control(power_mains)            
+            
+            if bwwp_controller_state == "HP":
+                relay.turn_on()
+                fhs280.set_solacel_only_hp()
+            elif bwwp_controller_state == "EL":
+                relay.turn_on()
+                fhs280.set_solacel_only_el()                
+            elif bwwp_controller_state == "OFF":                
+                relay.turn_off()
+                fhs280.set_solacel_off()
+
+            fhs280_t1 = fhs280.read_t1()
+            fhs280_t2 = fhs280.read_t2()
+            fhs280_compressor = fhs280.read_relay1_kompressor()
+            fhs280_elpatron = fhs280.read_relay2_elpatron()
+            
+            # Turn the fan on
+            if fhs280_compressor:
+                fan_relay.turn_on()
+            else:
+                fan_relay.turn_off()
+
+            fan_relay_state = fan_relay.read_relay_state()
+
+            if power_mains < -2000:
+                fhs280.set_solacel_only_el()
 
             row = {
                     "timestamp": timestamp,
@@ -113,12 +153,21 @@ async def main(interactive=False):
                     "power_bwwp": power_bwwp,
                     "power_mypv": power_mypv,
                     "power_wp": power_wp,
+                    "power_pv": power_pv,
+                    "power_pv_l1": power_pv_l1,
+                    "power_pv_l2": power_pv_l2,
+                    "power_pv_l3": power_pv_l3,
                     "temperature_blue": temp_blue,
                     "temperature_black": temp_black,
-                    "temperature_white": temp_white,
-                    "controller_state": state,
+                    "temperature_white": temp_white,                    
                     "temperature_sht": temp_sht,
-                    "humidity_sht": humid_sht
+                    "humidity_sht": humid_sht,                    
+                    "fhs280_t1": fhs280_t1,
+                    "fhs280_t2": fhs280_t2,
+                    "controller_state": bwwp_controller_state,
+                    "fhs280_compressor": fhs280_compressor,
+                    "fhs280_elpatron": fhs280_elpatron,
+                    "fan_relay_state": fan_relay_state,
                 }
 
             if now - last_log >= LOG_INTERVAL:

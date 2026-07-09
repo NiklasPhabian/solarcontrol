@@ -12,10 +12,10 @@ try:
     from pymodbus.client import ModbusSerialClient
     from pymodbus.constants import Endian
     from pymodbus.payload import BinaryPayloadDecoder
-except ImportError as exc:
-    raise ImportError(
-        "pymodbus is required for Modbus support. Install with `pip install pymodbus`."
-    ) from exc
+except ImportError:  # pragma: no cover - import is optional in test environments
+    ModbusSerialClient = None  # type: ignore[assignment]
+    Endian = None  # type: ignore[assignment]
+    BinaryPayloadDecoder = None  # type: ignore[assignment]
 
 try:
     import serial
@@ -78,6 +78,11 @@ class ModbusController:
             self.bytesize = bytesize
             self.timeout = timeout
             self.method = method
+        if ModbusSerialClient is None:
+            raise ImportError(
+                "pymodbus is required for Modbus support. Install with `pip install pymodbus`."
+            )
+
         # pymodbus has changed APIs across versions; try constructing the
         # ModbusSerialClient with `method=` first, and fall back to a
         # signature that doesn't accept `method` if needed.

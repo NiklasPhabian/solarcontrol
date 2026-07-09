@@ -24,12 +24,14 @@ class Relay:
             self.turn_off()
 
     def turn_off(self):
-        self.on = False
-        GPIO.output(self.pin, self.off_gpio_state)
+        if self.on:
+            self.on = False
+            GPIO.output(self.pin, self.off_gpio_state)        
 
     def turn_on(self):
-        self.on = True
-        GPIO.output(self.pin, self.on_gpio_state)
+        if not self.on:
+            self.on = True
+            GPIO.output(self.pin, self.on_gpio_state)
 
     def cleanup(self):
         GPIO.cleanup()
