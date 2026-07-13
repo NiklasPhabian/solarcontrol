@@ -213,6 +213,47 @@ class Display:
                     fill="white",
                 )
 
+
+    def show_controller_state(self, state, power_balance, cooldown_remaining_s=None):
+        """Show controller mode in the yellow band (top 16 px) + context in the blue area.
+
+        The display hardware has a fixed two-colour split:
+          - rows  0-15  are driven by yellow phosphor
+          - rows 16-63  are driven by blue phosphor
+
+        Layout:
+          yellow band  →  state label  (HP / EL / OFF / INIT)
+          blue area    →  power balance, or HP cooldown countdown
+        """
+        YELLOW_TOP    = 0
+        YELLOW_HEIGHT = 16
+        BLUE_TOP      = 16
+        BLUE_HEIGHT   = self.device.height - BLUE_TOP  # 48 px on a 64-px display
+
+        state_label = state if state is not None else "INIT"
+
+        if cooldown_remaining_s is not None and cooldown_remaining_s > 0:
+            sub = f"CD {int(cooldown_remaining_s)}s"
+        else:
+            sub = self.format_quantity(power_balance, "W") if power_balance is not None else "---"
+
+        with luma.core.render.canvas(self.device) as draw:
+            # --- Yellow band: state label ---
+            font_top = self._best_font(state_label, self.device.width, YELLOW_HEIGHT - 2)
+            bbox = draw.textbbox((0, 0), state_label, font=font_top)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            x = (self.device.width - tw) // 2
+            y = YELLOW_TOP + (YELLOW_HEIGHT - th) // 2
+            draw.text((x, y), state_label, font=font_top, fill="white")
+
+            # --- Blue area: context line ---
+            font_bot = self._best_font(sub, self.device.width, BLUE_HEIGHT - 4)
+            bbox = draw.textbbox((0, 0), sub, font=font_bot)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            x = (self.device.width - tw) // 2
+            y = BLUE_TOP + (BLUE_HEIGHT - th) // 2
+            draw.text((x, y), sub, font=font_bot, fill="white")
+
     def show_chart_with_last_value_old(self, bars, unit, value=None):
         """
         Display a bar chart at the bottom and the last value on top.

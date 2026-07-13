@@ -30,7 +30,7 @@ probe_id_blue = config['temp_sensors']['blue']
 probe_id_black = config['temp_sensors']['black']
 probe_id_white = config['temp_sensors']['white']
 
-# Relay
+# PV Relay connected to GPIO
 relay_pin = config['relay']['pin']
 
 # Displays
@@ -42,7 +42,14 @@ display_port2 = config['display2']['port']
 # Database setup
 db_path = config['sqlite']['db_path']
 table_name = config['sqlite']['table_name']
-columns=['power', 'temperature_blue', 'temperature_black', 'temperature_white', 'controller_state']
+columns = [
+    'power_mains', 'power_bwwp', 'power_mypv', 'power_wp',
+    'power_pv', 'power_pv_l1', 'power_pv_l2', 'power_pv_l3',
+    'temperature_blue', 'temperature_black', 'temperature_white',
+    'temperature_sht', 'humidity_sht',
+    'fhs280_t1', 'fhs280_t2', 'fhs280_compressor', 'fhs280_elpatron',
+    'controller_state', 'fan_relay_state',
+]
 
 # Meter
 meter_host = config['ecotracker']['host']
@@ -59,9 +66,20 @@ slave_address_waveshare_relay = config['modbus_slave_addresses']['waveshare_rela
 
 # Time settings
 LOG_INTERVAL = datetime.timedelta(minutes=5)
-PLOT_INTERVAL = datetime.timedelta(hours=1)
+PLOT_INTERVAL = datetime.timedelta(minutes=15)
 
 output_dir = "www"
+
+
+def safe(fn, *args, **kwargs):
+    """Call fn(*args, **kwargs) and return None on any exception."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as exc:
+        name = getattr(fn, '__qualname__', None) or getattr(fn, '__name__', repr(fn))
+        print(f"[warn] {name}: {exc}")
+        return None
+
 
 async def main(interactive=False):
     last_log = datetime.datetime.min.replace(tzinfo=timezone)
@@ -82,11 +100,12 @@ async def main(interactive=False):
     fhs280 = modbus.devices.FHS280(modbus_controller, slave_address_fhs280)
     fan_relay = modbus.devices.WaveshareESP32S3Relay1CH(modbus_controller, slave_address_waveshare_relay)
 
-    display1 = Display(port=display_port1, address=display_address1)
-    display2 = Display(port=display_port2, address=display_address2)
+    display1 = safe(Display, port=display_port1, address=display_address1)
+    display2 = safe(Display, port=display_port2, address=display_address2)
 
     database = SQLiteDatabase(db_path=db_path)
-    table = SQLiteTable(database=database, name=table_name, columns=columns)
+    table = SQLiteTable(database=database, name=table_name, columns=columns,
+                       column_types={'controller_state': 'TEXT'})
     table.create_if_not_exists()
 
     plotter = Plotter(table)
@@ -96,7 +115,11 @@ async def main(interactive=False):
                                  el_nominal_power=el_nominal_power,
                                  safety_margin=safety_margin,
                                  min_hp_off_seconds=min_hp_off_seconds)
-    relay = Relay(pin=relay_pin)
+    fhs280_pv_relay = Relay(pin=relay_pin)
+    prev_controller_state = None
+
+    power_bars = []
+    plot_files = []
 
     try:
         while True:
@@ -104,90 +127,104 @@ async def main(interactive=False):
             timestamp = now.isoformat()
 
             power_mains = await power_meter.get_power()
-            power_bwwp = sdm_bwwp.read_active_power()
-            power_mypv = sdm_mypv.read_active_power()
-            power_wp = finder7m.read_total_active_power()
-            power_pv = sdm72dm.read_total_active_power()
-            power_pv_l1 = sdm72dm.read_active_power_l1()
-            power_pv_l2 = sdm72dm.read_active_power_l2()
-            power_pv_l3 = sdm72dm.read_active_power_l3()
+            power_bwwp = safe(sdm_bwwp.read_active_power)
+            power_mypv = safe(sdm_mypv.read_active_power)
+            power_wp = safe(finder7m.read_total_active_power)
+            power_pv = safe(sdm72dm.read_total_active_power)
+            power_pv_l1 = safe(sdm72dm.read_active_power_l1)
+            power_pv_l2 = safe(sdm72dm.read_active_power_l2)
+            power_pv_l3 = safe(sdm72dm.read_active_power_l3)
 
             temp_blue = temperature_sensor_blue.get_temp()
             temp_black = temperature_sensor_black.get_temp()
             temp_white = temperature_sensor_white.get_temp()
 
-            temp_sht = sht20.read_temperature()
-            humid_sht = sht20.read_humidity()
+            temp_sht = safe(sht20.read_temperature)
+            humid_sht = safe(sht20.read_humidity)
 
-            bwwp_controller_state = bwwp_controller.control(power_mains)            
-            
-            if bwwp_controller_state == "HP":
-                relay.turn_on()
-                fhs280.set_solacel_only_hp()
-            elif bwwp_controller_state == "EL":
-                relay.turn_on()
-                fhs280.set_solacel_only_el()                
-            elif bwwp_controller_state == "OFF":                
-                relay.turn_off()
-                fhs280.set_solacel_off()
-
-            fhs280_t1 = fhs280.read_t1()
-            fhs280_t2 = fhs280.read_t2()
-            fhs280_compressor = fhs280.read_relay1_kompressor()
-            fhs280_elpatron = fhs280.read_relay2_elpatron()
-            
-            # Turn the fan on
-            if fhs280_compressor:
-                fan_relay.turn_on()
+            if power_mains is not None:
+                bwwp_controller_state = bwwp_controller.control(power_mains)
             else:
-                fan_relay.turn_off()
+                bwwp_controller_state = bwwp_controller.current_mode or "OFF"
 
-            fan_relay_state = fan_relay.read_relay_state()
+            if bwwp_controller_state != prev_controller_state:
+                mains_str = f"{power_mains:.1f}W" if power_mains is not None else "n/a"
+                print(f"{now.strftime('%Y-%m-%d %H:%M:%S')} | controller: {prev_controller_state} -> {bwwp_controller_state}  (mains={mains_str})")
+                prev_controller_state = bwwp_controller_state
 
-            if power_mains < -2000:
-                fhs280.set_solacel_only_el()
+            if bwwp_controller_state == "HP":
+                safe(fhs280_pv_relay.turn_on)
+                safe(fhs280.set_solacel_only_hp)
+            elif bwwp_controller_state == "EL":
+                safe(fhs280_pv_relay.turn_on)
+                safe(fhs280.set_solacel_only_el)
+            elif bwwp_controller_state == "OFF":
+                safe(fhs280_pv_relay.turn_off)
+                safe(fhs280.set_solacel_off)
+
+            fhs280_t1 = safe(fhs280.read_t1)
+            fhs280_t2 = safe(fhs280.read_t2)
+            fhs280_compressor = safe(fhs280.read_relay1_kompressor)
+            fhs280_elpatron = safe(fhs280.read_relay2_elpatron)
+
+            if fhs280_compressor:
+                safe(fan_relay.turn_on)
+            else:
+                safe(fan_relay.turn_off)
+
+            fan_relay_state = safe(fan_relay.read_relay_state)
 
             row = {
-                    "timestamp": timestamp,
-                    "power_mains": power_mains,
-                    "power_bwwp": power_bwwp,
-                    "power_mypv": power_mypv,
-                    "power_wp": power_wp,
-                    "power_pv": power_pv,
-                    "power_pv_l1": power_pv_l1,
-                    "power_pv_l2": power_pv_l2,
-                    "power_pv_l3": power_pv_l3,
-                    "temperature_blue": temp_blue,
-                    "temperature_black": temp_black,
-                    "temperature_white": temp_white,                    
-                    "temperature_sht": temp_sht,
-                    "humidity_sht": humid_sht,                    
-                    "fhs280_t1": fhs280_t1,
-                    "fhs280_t2": fhs280_t2,
-                    "controller_state": bwwp_controller_state,
-                    "fhs280_compressor": fhs280_compressor,
-                    "fhs280_elpatron": fhs280_elpatron,
-                    "fan_relay_state": fan_relay_state,
-                }
+                "timestamp": timestamp,
+                "power_mains": power_mains,
+                "power_bwwp": power_bwwp,
+                "power_mypv": power_mypv,
+                "power_wp": power_wp,
+                "power_pv": power_pv,
+                "power_pv_l1": power_pv_l1,
+                "power_pv_l2": power_pv_l2,
+                "power_pv_l3": power_pv_l3,
+                "temperature_blue": temp_blue,
+                "temperature_black": temp_black,
+                "temperature_white": temp_white,
+                "temperature_sht": temp_sht,
+                "humidity_sht": humid_sht,
+                "fhs280_t1": fhs280_t1,
+                "fhs280_t2": fhs280_t2,
+                "controller_state": bwwp_controller_state,
+                "fhs280_compressor": fhs280_compressor,
+                "fhs280_elpatron": fhs280_elpatron,
+                "fan_relay_state": fan_relay_state,
+            }
 
             if now - last_log >= LOG_INTERVAL:
                 table.insert_row(row)
                 power_bars = table.latest_n_resampled_values(n=60, column="power_mains", aggregate="AVG", sample_interval=15)
-                temperature_bars = table.latest_n_resampled_values(n=60, column="temperature_blue", aggregate="AVG", sample_interval=15)
                 last_log = now
 
             if now - last_plot >= PLOT_INTERVAL:
                 plot_files = []
-                plot_files.append(plotter.plot_timeseries("power_mains", hours=24))        
-                plot_files.append(plotter.plot_timeseries("power_bwwp", hours=24))        
-                plot_files.append(plotter.plot_timeseries("power_mypv", hours=24))        
+                plot_files.append(plotter.plot_timeseries("power_mains", hours=24))
+                plot_files.append(plotter.plot_bwwp_with_fhs280_temperatures(hours=24))
+                plot_files.append(plotter.plot_avg_by_hours_of_day("power_bwwp", days=7))
+                plot_files.append(plotter.plot_timeseries("power_mypv", hours=24))
+                plot_files.append(plotter.plot_pv_phase_powers(hours=24, sample_interval=15))
+                plot_files.append(plotter.plot_daily_trajectory("power_pv", days=30)) 
+                plot_files.append(plotter.plot_avg_by_hours_of_day("power_pv", days=7))                
                 last_plot = now
 
             html_writer = HTMLWriter(output_dir=output_dir, plot_files=plot_files, current_conditions=row)
             html_writer.write_html()
 
-            display1.show_chart_with_last_value(value=power_mains, unit='W', bars=power_bars)
-            display2.show_chart_with_last_value(value=temp_blue, unit='°C', bars=temperature_bars)
+            if display1 is not None:
+                safe(display1.show_chart_with_last_value, value=power_mains, unit='W', bars=power_bars)
+
+            if display2 is not None:
+                cooldown_left = max(0, bwwp_controller.min_hp_off_seconds - bwwp_controller.seconds_since_hp_turned_off())
+                safe(display2.show_controller_state,
+                     state=bwwp_controller_state,
+                     power_balance=power_mains,
+                     cooldown_remaining_s=cooldown_left if bwwp_controller_state == "OFF" else None)
 
             if interactive:
                 print(row)
@@ -195,7 +232,7 @@ async def main(interactive=False):
             await asyncio.sleep(60)
     finally:
         database.close()
-        relay.cleanup()
+        fhs280_pv_relay.cleanup()
 
 
 if __name__ == "__main__":

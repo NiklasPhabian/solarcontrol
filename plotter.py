@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 
 def guess_unit(column):
@@ -53,27 +53,217 @@ class Plotter:
         plt.savefig(filepath)
         plt.close()
         return filepath
-        
-    def plot_timeseries(self, column, hours=24):
+
+    @staticmethod
+    def _nan_or_value(value):
+        return value if value is not None else float('nan')
+
+    def _fetch_resampled_timeseries(self, columns, start_time, end_time, sample_interval=15):
+        """Return resampled averages for one or more columns."""
+        if not columns:
+            raise ValueError("columns must not be empty")
+
+        select_columns = ",\n            ".join(
+            f'AVG("{column}") AS "{column}"' for column in columns
+        )
+        query_sql = f"""\
+        SELECT
+            datetime(strftime('%Y-%m-%d %H:', timestamp) || printf('%02d', (strftime('%M', timestamp) / {sample_interval}) * {sample_interval}), 'localtime') AS interval,
+            {select_columns}
+        FROM {self.db_table.name}
+        WHERE datetime(timestamp) BETWEEN datetime(?) AND datetime(?)
+        GROUP BY interval
+        ORDER BY interval;
+        """
+        rows = self._execute_query(query_sql, start_time, end_time)
+
+        data = []
+        for row in rows:
+            row_data = {"timestamp": row[0]}
+            for idx, column in enumerate(columns, start=1):
+                row_data[column] = row[idx]
+            data.append(row_data)
+        return data
+
+    def _plot_axis_series(self, axis, timestamps, data, columns):
+        """Plot one or more columns onto the provided axis."""
+        handles = []
+        for column_spec in columns:
+            if isinstance(column_spec, str):
+                column = column_spec
+                label = column_spec
+                color = None
+            else:
+                column = column_spec["column"]
+                label = column_spec.get("label", column)
+                color = column_spec.get("color")
+
+            values = [self._nan_or_value(row.get(column)) for row in data]
+            handle, = axis.plot(timestamps, values, marker='o', label=label, color=color)
+            handles.append(handle)
+        return handles
+
+    def _axis_label_for_columns(self, columns):
+        units = []
+        for column_spec in columns:
+            column = column_spec if isinstance(column_spec, str) else column_spec["column"]
+            unit = guess_unit(column)
+            if unit and unit not in units:
+                units.append(unit)
+
+        if len(units) == 1:
+            return units[0]
+        if len(units) > 1:
+            return ", ".join(units)
+        return ""
+
+    @staticmethod
+    def _column_name(column_spec):
+        return column_spec if isinstance(column_spec, str) else column_spec["column"]
+
+    @staticmethod
+    def _format_tick_value(value):
+        if abs(value) >= 100:
+            return f"{value:.0f}"
+        if abs(value - round(value)) < 0.05:
+            return f"{value:.0f}"
+        return f"{value:.1f}"
+
+    def _apply_axis_tick_units(self, axis, unit):
+        if not unit:
+            return
+
+        axis.yaxis.set_major_formatter(
+            FuncFormatter(lambda value, _pos: f"{self._format_tick_value(value)} {unit}")
+        )
+
+    def plot_resampled_timeseries(self,
+                                  left_columns,
+                                  hours=24,
+                                  right_columns=None,
+                                  sample_interval=15,
+                                  title=None,
+                                  left_axis_label=None,
+                                  right_axis_label=None,
+                                  left_tick_unit=None,
+                                  right_tick_unit=None,
+                                  filename=None):
+        """Plot one or more resampled columns, optionally with a second y-axis."""
+        right_columns = right_columns or []
         start_time, end_time = self._get_time_range(hours=hours)
-        data = self.db_table.resampled_timeseries(column=column, start_time=start_time, end_time=end_time, sample_interval=15)
+
+        all_columns = [self._column_name(spec) for spec in left_columns + right_columns]
+        unique_columns = list(dict.fromkeys(all_columns))
+        data = self._fetch_resampled_timeseries(
+            columns=unique_columns,
+            start_time=start_time,
+            end_time=end_time,
+            sample_interval=sample_interval,
+        )
         timestamps = [row["timestamp"] for row in data]
-        values = [row[column] if row[column] is not None else float('nan') for row in data]
-        unit = guess_unit(column)
 
         plt.figure(figsize=self._figsize, dpi=self._dpi)
-        plt.plot(timestamps, values, marker='o')
-        plt.title(f"{column} over the last {hours} hours")
-        plt.xlabel("Time")
-        plt.ylabel(f"{column} ({unit})")
-        plt.gca().xaxis.set_major_locator(MaxNLocator(nbins=12))
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.grid()
+        ax_left = plt.gca()
+        left_handles = self._plot_axis_series(ax_left, timestamps, data, left_columns)
 
-        filename = f"{column}_last_{hours}_hours.png"
+        if left_axis_label is None:
+            left_axis_label = ""
+
+        if left_tick_unit is None:
+            left_unit = self._axis_label_for_columns(left_columns)
+        else:
+            left_unit = left_tick_unit
+
+        left_column_names = ", ".join(self._column_name(spec) for spec in left_columns)
+        if not title:
+            title = f"{left_column_names} over the last {hours} hours"
+
+        if not filename:
+            first_left_column = self._column_name(left_columns[0])
+            filename = f"{first_left_column}_last_{hours}_hours.png"
+
+        ax_left.set_title(title)
+        ax_left.set_xlabel("Time")
+        ax_left.set_ylabel(left_axis_label)
+        self._apply_axis_tick_units(ax_left, left_unit)
+        ax_left.xaxis.set_major_locator(MaxNLocator(nbins=12))
+
+        legend_handles = list(left_handles)
+        if right_columns:
+            ax_right = ax_left.twinx()
+            right_handles = self._plot_axis_series(ax_right, timestamps, data, right_columns)
+            legend_handles.extend(right_handles)
+            if right_axis_label is None:
+                right_axis_label = ""
+            if right_tick_unit is None:
+                right_unit = self._axis_label_for_columns(right_columns)
+            else:
+                right_unit = right_tick_unit
+            ax_right.set_ylabel(right_axis_label)
+            self._apply_axis_tick_units(ax_right, right_unit)
+
+        labels = [handle.get_label() for handle in legend_handles]
+        if legend_handles:
+            ax_left.legend(
+                legend_handles,
+                labels,
+                loc='best',
+                framealpha=0.65,
+                facecolor='white',
+                edgecolor='0.5',
+            )
+
+        for label in ax_left.get_xticklabels():
+            label.set_rotation(45)
+            label.set_horizontalalignment('right')
+        plt.tight_layout()
+        ax_left.grid()
+
         self._save_plot(filename)
         return filename
+        
+    def plot_timeseries(self, column, hours=24):
+        return self.plot_resampled_timeseries(
+            left_columns=[{"column": column, "label": column}],
+            hours=hours,
+            title=f"{column} over the last {hours} hours",
+            left_axis_label=column,
+            filename=f"{column}_last_{hours}_hours.png",
+        )
+
+    def plot_bwwp_with_fhs280_temperatures(self, hours=24, sample_interval=15):
+        """Plot BWWP power on left axis and FHS280 temperatures on right axis."""
+        return self.plot_resampled_timeseries(
+            left_columns=[{"column": "power_bwwp", "label": "power_bwwp", "color": "tab:blue"}],
+            right_columns=[
+                {"column": "fhs280_t1", "label": "fhs280_t1", "color": "tab:red"},
+                {"column": "fhs280_t2", "label": "fhs280_t2", "color": "tab:green"},
+            ],
+            hours=hours,
+            sample_interval=sample_interval,
+            title=f"power_bwwp + fhs280 temperatures over the last {hours} hours",
+            left_axis_label="Power",
+            right_axis_label="Temperature",
+            left_tick_unit="W",
+            right_tick_unit="°C",
+            filename=f"power_bwwp_last_{hours}_hours.png",
+        )
+
+    def plot_pv_phase_powers(self, hours=24, sample_interval=15):
+        """Plot PV phase powers (L1/L2/L3) together on one axis."""
+        return self.plot_resampled_timeseries(
+            left_columns=[
+                {"column": "power_pv_l1", "label": "power_pv_l1", "color": "tab:red"},
+                {"column": "power_pv_l2", "label": "power_pv_l2", "color": "tab:green"},
+                {"column": "power_pv_l3", "label": "power_pv_l3", "color": "tab:blue"},
+            ],
+            hours=hours,
+            sample_interval=sample_interval,
+            title=f"power_pv_l1 + power_pv_l2 + power_pv_l3 over the last {hours} hours",
+            left_axis_label="PV Power",
+            left_tick_unit="W",
+            filename=f"power_pv_l1_l2_l3_last_{hours}_hours.png",
+        )
 
     def plot_avg_by_hours_of_day(self, column, days=7):
         """Plot the average over the hours of the day.

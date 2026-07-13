@@ -24,13 +24,16 @@ class SQLiteDatabase:
 
 class SQLiteTable:
 
-    def __init__(self, database, name, columns):
+    def __init__(self, database, name, columns, column_types=None):
         self.database = database
         self.name = name
         self.columns = columns
+        self.column_types = column_types or {}
 
-    def create_if_not_exists(self):        
-        columns_def = ", ".join(f"{name} REAL" for name in self.columns)
+    def create_if_not_exists(self):
+        def _col_type(col):
+            return self.column_types.get(col, "REAL")
+        columns_def = ", ".join(f"{col} {_col_type(col)}" for col in self.columns)
         create_sql = f"CREATE TABLE IF NOT EXISTS {self.name} (timestamp TEXT PRIMARY KEY, {columns_def})"
         self.database.conn.execute(create_sql)
         self.database.conn.commit()

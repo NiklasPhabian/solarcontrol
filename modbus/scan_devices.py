@@ -20,7 +20,7 @@ if not client.connect():
 
 
 def scan_modbus_devices():
-    for slave in range(0, 256):
+    for slave in range(1, 10):
         try:
             rr = client.read_holding_registers(
                 address=0,

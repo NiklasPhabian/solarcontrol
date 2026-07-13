@@ -6,10 +6,12 @@ class TemperatureSensor():
         self.temp_sensor = f'/sys/bus/w1/devices/{serial}/w1_slave'
 
     def get_temp(self):
-        with open(self.temp_sensor, 'r') as tmpfile:
-            last_line = tmpfile.readlines()[-1]
-            temp = float(last_line.split('=')[-1]) / 1000            
-        return temp
+        try:
+            with open(self.temp_sensor, 'r') as tmpfile:
+                last_line = tmpfile.readlines()[-1]
+                return float(last_line.split('=')[-1]) / 1000
+        except FileNotFoundError:
+            return None
 
 
 if __name__ == '__main__':

@@ -1,0 +1,1418 @@
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+SDM72D-M-2
+Three Phase Four Wire Energy Meter
+
+
+
+
+
+
+
+
+
+
+Multi-parameter measurment
+Resettable partial energy
+Bi-directional measurement IMP & EXP
+Pulse Output
+RS485 Modbus
+Din rail mounting 35mm
+Direct connection, up to 100A
+Better than Class 1/ B accuracy
+
+User Manual V1.1.1 2023
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+-1-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+Introduction
+The SDM72D-M-2 is digital 3 phase 4 wires energy meter with white back-lighted LCD screen for perfect reading.
+The unit measures and displays voltage, current, frequency, power factor, active power, reactive power, active
+energy and reactive energy, etc. A resettable partial energy is provided, so the user can easily check the active
+energy imported and active energy exported during a certain period. SDM72D-M-2 supports max.100A direct
+connection, saving the cost and avoiding the trouble to connect external CTs, giving the unit a cost-effective and
+east operation. Built-in interfaces provide pulse and RS485 Modbus RTU outputs. Configuration is password
+protected.
+
+PART 1 Specification
+General Specifications
+Voltage AC (Un)
+Voltage Range
+Base Current (Ib)
+Max. Current (Imax)
+Mini Current (Imin)
+Starting current
+Power consumption
+Frequency
+AC voltage withstand
+Impulse voltage withstand
+Overcurrent withstand
+Power supply
+Display
+Max. Reading
+Active energy
+Reactive energy
+
+3x230(400)V
+80~120% Un
+10A AC
+100A AC
+5% of Ib AC
+0.4% of Ib
+≤ 2W/10VA for the voltage measuring circuit
+≤ 4VA for the current measuring circuit
+50/60Hz (non-MID); 50Hz(MID)
+4KV for 1 minute
+6KV-1.2uS wavform
+30 Imax for 0.01s
+self-power supply
+LCD with backlit
+999999.9kWh
+Class 1 IEC62053-21 (non-MID)
+Class B EN50470-1/3 (MID)
+Class 2 IEC62053-23
+
+Unit Characteristics
+Characteristics:
+ Voltage
+ Current
+ Frequency
+ Power factor
+ Active power
+ Reactive Power
+ Active energy imported and exported
+ Reactive energy
+
+Accuracy:
+0.5%
+0.5%
+0.2%
+1%
+1%
+1%
+1%
+2%
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+Resolution:
+≤ 0.1V
+≤ 0.1A
+≤ 0.2%
+≤ 0.1
+≤ 0.1kW
+≤ 0.1 kVAr
+≤ 0.1kWh
+≤ 0.1 kVArh
+B+G e-tech GmbH
+
+-2-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+RS485 Serial – Modbus RTU
+This unit uses an RS485 serial port with Modbus RTU protocol to provide a means of remotely monitoring and
+controlling the Unit.
+Set-up screens are provided for setting up the RS485 port.
+Pulse output
+The unit provides pulse output for active kWh. The Pulse output is passive type.
+Pulse constant:
+1000imp/kWh
+Pulse width:
+35mS
+Direction for Pulse: Import
+
+RS485 Output for Modbus RTU
+For Modbus RTU, the following RS485 communication parameters can be configured from the Set-up menu:
+Baud rate 1200,2400, 4800, 9600, 19200 bps
+Parity none (default)/odd/even
+Stop bits 1 or 2
+RS485 network address nnn – 3-digit number, 001 to 247
+Modbus™ Word order Hi/Lo byte order is set automatically to normal or reverse. It cannot be configured from
+the set-up menu.
+Environment
+Operating temperature
+
+3K6 （-25℃ to +55℃）(default)
+
+Storage and transportation temperature
+Reference temperature
+Relative humidity
+Altitude
+Warm up time
+Installation category
+Mechanical Environment
+Electromagnetic environment
+Degree of pollution
+
+3K7 （-40℃ to + 70℃） (optional)
+-40℃ to +70℃
+23℃±2℃
+0 to 95%, non-condensing
+up to 2000m
+3s
+CAT III
+M1
+E2
+2
+
+Mechanics
+Din rail dimensions
+Mounting
+Protection against penetration of dust and water
+Material
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+72x100x66 (WxHxD) DIN 43880
+DIN rail 35mm
+IP51 (indoor)
+self-extinguishing UL94V-0
+
+in distribution of
+
+B+G e-tech GmbH
+
+-3-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+PART 2 Operation
+Initialization Display
+When it is powered on, the meter will initialize and do self-checking.
+Full Screen
+
+Software Version
+
+Pulse constant
+
+Total active energy(kWh)
+Total=Import+ Export
+5+2 -> 6+1
+Max. reading: 999999.9 kWh
+
+Buttons function
+There are two buttons on the front panel.
+>Scroll the display for data-check.
+>Change option at Set-up mode
+>Exit the Set-up mode
+>Set-up mode entry
+>Confirmation
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+-4-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+Scroll display
+After initialization and self-checking program, the meter displays the measured values. The default page is total
+kWh. If the user wants to check other information, please press the scroll button
+
+on the front panel.
+
+Total active energy
+Total=Import+ Export
+
+Resettable partial kWh
+Total=Import+ Export
+
+Import energy
+
+Export energy
+
+Total reactive energy
+
+Resettable reactive energy
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+-5-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+Voltage L1-N
+
+Voltage L2-N
+
+Voltage L3-N
+
+L1 current
+
+L2 current
+
+L3 current
+
+L1 active power
+
+L2 active power
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+-6-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+L3 active power
+
+Total active power
+
+L1 reactive power
+
+L2 reactive power
+
+L3 reactive power
+
+Total reactive power
+
+L1 Power factor
+
+L2 power factor
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+-7-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+L3 power factor
+
+Total Power factor
+
+Frequency
+
+Pulse output type:
+Default: kWh
+Pulse constant: 1000imp
+Modbus Address
+
+Baud Rate
+
+Parity
+
+Software version
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+-8-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+Set-up Mode
+To get into Set-up Mode, the user need to press the “Enter” button
+
+Setting interface
+
+Setting status
+
+for 3 seconds.
+
+Option:
+Password
+Default: 1000
+
+Modbus address
+Rane:001~247
+default:001
+Buad rate
+Option：
+1200,2400,4800,9600,
+19200 bps
+default：9600 bps
+Parity:
+Option:NONE,EVEN,ODD
+default:NONE
+Stop bit
+Option:1,2
+default：1
+Automatic Scroll display set
+Range:0~60,unit:second
+default:05, 0 means do not
+scroll
+Backlit time setting
+Option:
+on,5,10,30,60,120,off
+unit：minute
+default：60 minute
+System:
+Option: 3P4W,1P2W
+default: 3P4W
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+-9-
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+Password:
+default:1000
+
+Resettable partial energy
+
+Keep pressing button
+
+to exit the set-up mold.
+
+Wiring diagram
+
+Terminals
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+- 10
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+3 phase 4 wire
+
+1 phase 2 wire
+
+NOTE:
+Maximum Wire Size for Mainload: 25mm²
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+- 11
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+Dimensions
+
+Installation
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+- 12
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+PART 3 Modbus Protocol
+Input Registers
+
+Input registers are used to indicate the present values of the measured and calculated electrical quantities. Each
+parameter is held in two consecutive 16 big register. The following table details the 3X register address, and the
+values of the the address bytes within the message. A (*) in the column indicated the parameter is valid for the
+particular wiring system, Any parameter with a cross (X) will return the value zero. Each parameter is held in the 3X
+registers. Modbus Protocol function code 04 is used to access all parameters.
+For example, to request: Amps 1 Start address = 0006
+No.of registers = 0002
+Amps 2 Start address = 0008
+No. Of register = 0002
+Each request for data must be restricted to 30 parameters or less. Exceeding the 30 parameter limit will cause a
+Modbus Protocol exception code to be returned.
+Modbus
+Protocol
+Start
+
+Input Register Parameter
+Address
+
+Address
+
+(Register)
+
+Hex
+Description
+
+Length
+
+Data
+
+(bytes)
+
+Format
+
+Units
+
+Hi
+
+Lo
+
+Byte
+
+Byte
+
+30001
+
+Phase 1 line to neutral volts.
+
+4
+
+Float
+
+V
+
+00
+
+00
+
+30003
+
+Phase 2 line to neutral volts.
+
+4
+
+Float
+
+V
+
+00
+
+02
+
+30007
+
+Phase 1 current.
+
+4
+
+Float
+
+A
+
+00
+
+06
+
+30009
+
+Phase 2 current.
+
+4
+
+Float
+
+A
+
+00
+
+08
+
+30011
+
+Phase 3 current.
+
+4
+
+Float
+
+A
+
+00
+
+0A
+
+30013
+
+Phase 1 active power.
+
+4
+
+Float
+
+W
+
+00
+
+0C
+
+30015
+
+Phase 2 active power.
+
+4
+
+Float
+
+W
+
+00
+
+0E
+
+30017
+
+Phase 3 active power.
+
+4
+
+Float
+
+W
+
+00
+
+10
+
+30019
+
+Phase 1 apparent power.
+
+4
+
+Float
+
+VA
+
+00
+
+12
+
+30021
+
+Phase 2 apparent power.
+
+4
+
+Float
+
+VA
+
+00
+
+14
+
+30023
+
+Phase 3 apparent power.
+
+4
+
+Float
+
+VA
+
+00
+
+16
+
+30025
+
+Phase 1 reactive power.
+
+4
+
+Float
+
+VAr
+
+00
+
+18
+
+30027
+
+Phase 2 reactive power.
+
+4
+
+Float
+
+VAr
+
+00
+
+1A
+
+30029
+
+Phase 3 reactive power.
+
+4
+
+Float
+
+VAr
+
+00
+
+1C
+
+30031
+
+Phase 1 power factor (1).
+
+4
+
+Float
+
+None
+
+00
+
+1E
+
+30033
+
+Phase 2 power factor (1).
+
+4
+
+Float
+
+None
+
+00
+
+20
+
+30035
+
+Phase 3 power factor (1).
+
+4
+
+Float
+
+None
+
+00
+
+22
+
+30043
+
+Average line to neutral volts.
+
+4
+
+Float
+
+V
+
+00
+
+2A
+
+30047
+
+Average line current.
+
+4
+
+Float
+
+A
+
+00
+
+2E
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+- 13
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+30049
+
+Sum of line currents.
+
+4
+
+Float
+
+A
+
+00
+
+30
+
+30053
+
+Total system power.
+
+4
+
+Float
+
+W
+
+00
+
+34
+
+30057
+
+Total system volt amps.
+
+4
+
+Float
+
+VA
+
+00
+
+38
+
+30061
+
+Total system VAr.
+
+4
+
+Float
+
+VAr
+
+00
+
+3C
+
+30063
+
+Total system power factor (1).
+
+4
+
+Float
+
+None
+
+00
+
+3E
+
+30071
+
+Frequency of supply voltages.
+
+4
+
+Float
+
+Hz
+
+00
+
+46
+
+30073
+
+Import active energy
+
+4
+
+Float
+
+kWh
+
+00
+
+48
+
+30075
+
+Export active energy
+
+4
+
+Float
+
+kWh
+
+00
+
+4A
+
+30201
+
+Line 1 to Line 2 volts.
+
+4
+
+Float
+
+V
+
+00
+
+C8
+
+30203
+
+Line 2 to Line 3 volts.
+
+4
+
+Float
+
+V
+
+00
+
+CA
+
+30205
+
+Line 3 to Line 1 volts.
+
+4
+
+Float
+
+V
+
+00
+
+CC
+
+30207
+
+Average line to line volts.
+
+4
+
+Float
+
+V
+
+00
+
+CE
+
+30225
+
+Neutral current.
+
+4
+
+Float
+
+A
+
+00
+
+E0
+
+30343
+
+Total active Energy (2)
+
+4
+
+Float
+
+kWh
+
+01
+
+56
+
+30345
+
+Total reactive energy
+
+4
+
+Float
+
+kVArh
+
+01
+
+58
+
+30385
+
+resettable total active energy
+
+4
+
+Float
+
+kWh
+
+01
+
+80
+
+30387
+
+Resettable total reactive energy
+
+4
+
+Float
+
+kVarh
+
+01
+
+82
+
+30389
+
+resettable import active energy
+
+4
+
+Float
+
+kWh
+
+01
+
+84
+
+30391
+
+resettable export active energy
+
+4
+
+Float
+
+kWh
+
+01
+
+86
+
+30397
+
+Net kWh (Import - Export)
+
+4
+
+Float
+
+kWh
+
+01
+
+8C
+
+31281
+
+Total import active power
+
+4
+
+Float
+
+W
+
+05
+
+00
+
+31283
+
+Total export active power
+
+4
+
+Float
+
+W
+
+05
+
+02
+
+Instruction:
+1: The power factor has its sign adjusted to indicate the direction of the current. Positive refers to forward current,
+negative refers to reverse current.
+2: Total active energy equals to import + export.
+
+Holding Registers
+Holding register are used to store and display instrument configuration settings. All holding registers not listed
+in the table below should be considered as reserved for manufacturer use and no attempt should be made to
+modify their values.
+The holding register parameters may be viewed or changed using the Modbus Protocol. Each parameter is held
+in two consecutive 4X registers. Modbus Protocol Function Code 03 is used to read the parameter and Function
+code 10 is used to write. Write only to one parameter per massage.
+
+Address
+Register
+
+Parameter
+
+Modbus
+Protocol
+Start Address
+Hex
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+Valid range
+
+B+G e-tech GmbH
+
+Mode
+
+- 14
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+High
+Byte
+
+40011
+
+40013
+
+40015
+
+40019
+
+40021
+
+40023
+
+System Type
+
+Pulse width
+
+Key Parameter
+Programming
+Authorization
+(KPPA)
+
+Parity and stop
+bit
+
+Modbus
+address
+
+Pulse constant
+
+High
+Byte
+
+00
+
+00
+
+00
+
+00
+
+00
+
+00
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+0A
+
+Write system type:
+1 = 1P2W;
+3 = 3P4W,(default);
+Length : 4 byte
+Data Format : Float
+(KPPA is asked)
+
+r/w
+
+OC
+
+Range：60, 100, 200，unit: ms，
+default 100.
+Note: If pulse output
+=1000imp/kWh，then pulse
+width is fixed at 35ms，and
+cannot be adjusted.
+Length : 4 byte
+Data Format : Float
+
+r/w
+
+0E
+
+Read: to get the status of the KPPA
+0 = not authorized；1 = authorized
+Write the correct password to get
+KPPA, enable to program key
+parameters.
+Length : 4 byte
+Data Format : Float
+
+r/w
+
+12
+
+Write the network port
+parity/stop bits for MODBUS
+Protocol, where: 0 = One stop bit
+and no parity, default. 1 = One
+stop bit and even parity. 2 = One
+stop bit and odd parity.3 = Two
+stop bits and no parity.
+Length : 4 byte
+Data Format : Float
+
+r/w
+
+14
+
+Write the network port node
+Address: 1 to 247
+default 1.
+Length : 4 byte
+Data Format : Float
+
+r/w
+
+16
+
+Option: 0~3, default 0
+0 :1000 imp/kWh
+1 : 100 imp/kWh
+2: 10 imp/kWh
+3: 1 imp/kWh
+Note: If pulse output
+
+in distribution of
+
+B+G e-tech GmbH
+
+r/w
+
+- 15
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+=1000imp/kWh，then pulse
+width is fixed at 35ms，and
+cannot be adjusted.
+Length : 4 byte
+Data Format : Float
+
+40025
+
+Password
+
+40029
+
+Network Baud
+Rate
+
+40059
+
+Automatic
+Scroll Display
+Time
+
+40061
+
+Backlit time
+
+00
+
+00
+
+00
+
+00
+
+18
+
+Read: to get the password of the
+meter
+Write: to program the new
+password of the meter
+Default 1000
+Length : 4 byte
+Data Format : Float
+
+r/w
+
+1C
+
+Write the network port baud rate
+for MODBUS Protocol, where:
+0 = 2400 baud. 1 = 4800 baud.
+2 = 9600 baud(default).
+3 = 19200 baud
+5 = 1200 band
+Length : 4 byte
+Data Format : Float
+
+r/w
+
+3A
+
+Default 0，second
+Range 0~60
+Length : 4 byte
+Data Format : Float
+
+r/w
+
+3C
+
+Default 60, min
+Range 0~121, 0 means backlit
+always on, 121 means backlit
+always off
+Length : 4byte
+Data Format : Float
+
+r/w
+
+r/w
+
+wo
+
+40087
+
+Pulse 1 Energy
+Type
+
+00
+
+56
+
+Pulse 1 Energy Type：
+1: import active energy
+2: total active energy (default)
+4: export active energy
+Length : 4 byte
+Data Format : Float
+
+461457
+
+Reset historical
+data
+
+F0
+
+10
+
+00 03 = reset energy info
+Length : 2 byte
+Data Format: Hex
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+- 16
+
+Eastron SDM72D-M-2 User Manual V1.1.1 2023
+
+464513
+
+464515
+
+464645
+
+Serial number
+
+Meter code
+
+Software
+version
+
+FC
+
+FC
+
+FC
+
+00
+
+Serial number
+Length : 4 byte
+Data Format : unsigned int32
+Note: Only read
+
+ro
+
+02
+
+Meter code
+SDM72D-M-2= 00 89
+Length : 2 byte
+Data Format : Hex
+Note: Only read
+
+ro
+
+84
+
+The software showed on display
+XX.YY
+Format: XX= first byte; YY=
+second byte
+Length: 2 byte
+Data Format: Hex
+Note: Read only
+
+ro
+
+If you have any question, please feel free to contact our sales team.
+
+Zhejiang Eastron Electronic Co., Ltd.
+No.1369, Chengnan Rd. Jiaxing, Zhejiang, 314001, China
+Tel:
+
++86-573-83698881 Fax: +86-573-83698883
+
+Email: sales@eastrongroup.com
+www.eastrongroup.com
+
+Zhejiang Eastron Electronic Co.,Ltd.
+
+in distribution of
+
+B+G e-tech GmbH
+
+- 17
+
+

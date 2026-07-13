@@ -6,3 +6,4 @@ plots/
 solarcontrol.service
 www/*.png
 www/index.html
+www/power_pv_daily_trajectory.png
