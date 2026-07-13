@@ -65,6 +65,11 @@ class Controller:
         remaining = self.min_hp_off_seconds - self.seconds_since_hp_turned_off()
         return max(0, int(remaining))
 
+    def _mark_hp_turned_off(self):
+        """Start cooldown timer when HP stops running."""
+        self.time_turned_off_hp = datetime.datetime.now()
+        self._hp_off_monotonic = time.monotonic()
+
     def control(self, power_balance):
         """Update controller state based on power balance with hysteresis.
 
@@ -78,7 +83,7 @@ class Controller:
           HP  ──(>= off_threshold)────────────────────► OFF  (stamps cooldown timer)
           HP  ──(< on_threshold_el_from_hp)───────────► EL   (stamps cooldown timer)
 
-          EL  ──(>= off_threshold)────────────────────► OFF
+          EL  ──(>= off_threshold)────────────────────► OFF  (no cooldown stamp)
 
         There is intentionally no direct EL→HP transition.  When excess solar
         drops while in EL mode the controller goes EL→OFF, from which HP can
@@ -100,13 +105,11 @@ class Controller:
 
         elif self.current_mode == "HP":
             if power_balance >= self.off_threshold:
-                self.time_turned_off_hp = datetime.datetime.now()
-                self._hp_off_monotonic = time.monotonic()
+                self._mark_hp_turned_off()
                 self.current_mode = "OFF"
             elif power_balance < self.on_threshold_el_from_hp:
                 # Stamp the timer so a rapid EL→OFF→HP cycle still respects cooldown
-                self.time_turned_off_hp = datetime.datetime.now()
-                self._hp_off_monotonic = time.monotonic()
+                self._mark_hp_turned_off()
                 self.current_mode = "EL"
             # else: stay in HP
 

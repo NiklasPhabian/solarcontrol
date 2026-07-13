@@ -95,6 +95,14 @@ class TestELMode(unittest.TestCase):
         c = self._in_el()
         self.assertEqual(c.control(-20), "OFF")
 
+    def test_el_to_off_does_not_stamp_hp_cooldown_timer(self):
+        c = self._in_el()
+        old_wall = c.time_turned_off_hp
+        old_mono = c._hp_off_monotonic
+        self.assertEqual(c.control(-20), "OFF")
+        self.assertEqual(c.time_turned_off_hp, old_wall)
+        self.assertEqual(c._hp_off_monotonic, old_mono)
+
     def test_no_direct_el_to_hp_transition(self):
         """EL must go through OFF — a direct EL→HP would cause oscillation."""
         c = self._in_el()
