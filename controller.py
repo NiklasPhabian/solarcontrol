@@ -60,6 +60,11 @@ class Controller:
         """Check if HP cooldown period has passed."""
         return self.seconds_since_hp_turned_off() >= self.min_hp_off_seconds
 
+    def hp_cooldown_remaining_seconds(self):
+        """Return remaining HP cooldown in whole seconds, clamped at 0."""
+        remaining = self.min_hp_off_seconds - self.seconds_since_hp_turned_off()
+        return max(0, int(remaining))
+
     def control(self, power_balance):
         """Update controller state based on power balance with hysteresis.
 

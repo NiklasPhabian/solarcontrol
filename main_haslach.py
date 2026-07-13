@@ -220,7 +220,7 @@ async def main(interactive=False):
                 safe(display1.show_chart_with_last_value, value=power_mains, unit='W', bars=power_bars)
 
             if display2 is not None:
-                cooldown_left = max(0, bwwp_controller.min_hp_off_seconds - bwwp_controller.seconds_since_hp_turned_off())
+                cooldown_left = bwwp_controller.hp_cooldown_remaining_seconds()
                 safe(display2.show_controller_state,
                      state=bwwp_controller_state,
                      power_balance=power_mains,

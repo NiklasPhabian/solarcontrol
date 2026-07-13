@@ -133,6 +133,20 @@ class TestCooldownBoundary(unittest.TestCase):
         self.assertEqual(c.control(-700), "HP")
 
 
+class TestCooldownHelpers(unittest.TestCase):
+    def test_remaining_cooldown_is_positive_before_expiry(self):
+        c = make_controller(min_hp_off_seconds=300)
+        c._hp_off_monotonic = time.monotonic() - 120
+        remaining = c.hp_cooldown_remaining_seconds()
+        self.assertGreaterEqual(remaining, 179)
+        self.assertLessEqual(remaining, 181)
+
+    def test_remaining_cooldown_clamps_to_zero(self):
+        c = make_controller(min_hp_off_seconds=300)
+        c._hp_off_monotonic = time.monotonic() - 301
+        self.assertEqual(c.hp_cooldown_remaining_seconds(), 0)
+
+
 class TestValidation(unittest.TestCase):
     def test_rejects_inverted_hp_range(self):
         with self.assertRaises(ValueError):
