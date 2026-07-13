@@ -7,3 +7,6 @@ solarcontrol.service
 www/*.png
 www/index.html
 www/power_pv_daily_trajectory.png
+.tmp_docs/
+database/*.db-shm
+database/*.db-wal
