@@ -8,9 +8,25 @@ TABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 class SQLiteDatabase:
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, journal_mode: str = "DELETE", synchronous: str = "FULL"):
         self.db_path = Path(db_path)
         self.conn = sqlite3.connect(self.db_path)
+        self._apply_pragmas(journal_mode=journal_mode, synchronous=synchronous)
+
+    def _apply_pragmas(self, journal_mode: str, synchronous: str) -> None:
+        allowed_journal_modes = {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"}
+        allowed_synchronous = {"OFF", "NORMAL", "FULL", "EXTRA"}
+
+        journal_mode = journal_mode.upper()
+        synchronous = synchronous.upper()
+
+        if journal_mode not in allowed_journal_modes:
+            raise ValueError(f"Unsupported SQLite journal_mode: {journal_mode}")
+        if synchronous not in allowed_synchronous:
+            raise ValueError(f"Unsupported SQLite synchronous mode: {synchronous}")
+
+        self.conn.execute(f"PRAGMA journal_mode={journal_mode}")
+        self.conn.execute(f"PRAGMA synchronous={synchronous}")
 
     def close(self) -> None:
         self.conn.close()

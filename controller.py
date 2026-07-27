@@ -70,7 +70,7 @@ class Controller:
         self.time_turned_off_hp = datetime.datetime.now()
         self._hp_off_monotonic = time.monotonic()
 
-    def control(self, power_balance):
+    def control(self, power_balance, hp_running=True):
         """Update controller state based on power balance with hysteresis.
 
         Power convention: negative = excess solar being exported to grid.
@@ -81,7 +81,8 @@ class Controller:
           OFF ──(< on_threshold_el_from_off)─────────► EL
 
           HP  ──(>= off_threshold)────────────────────► OFF  (stamps cooldown timer)
-          HP  ──(< on_threshold_el_from_hp)───────────► EL   (stamps cooldown timer)
+          HP  ──(< on_threshold_el_from_hp)───────────► EL   (if compressor is running)
+          HP  ──(< on_threshold_el_from_off)──────────► EL   (if compressor is not running)
 
           EL  ──(>= off_threshold)────────────────────► OFF  (no cooldown stamp)
 
@@ -107,10 +108,16 @@ class Controller:
             if power_balance >= self.off_threshold:
                 self._mark_hp_turned_off()
                 self.current_mode = "OFF"
-            elif power_balance < self.on_threshold_el_from_hp:
-                # Stamp the timer so a rapid EL→OFF→HP cycle still respects cooldown
-                self._mark_hp_turned_off()
-                self.current_mode = "EL"
+            else:
+                el_threshold = self.on_threshold_el_from_hp if hp_running else self.on_threshold_el_from_off
+                if power_balance < el_threshold:
+                    # Stamp the timer so a rapid EL→OFF→HP cycle still respects cooldown
+                    self._mark_hp_turned_off()
+                    self.current_mode = "EL"
+                elif not hp_running and power_balance >= self.on_threshold_hp:
+                    # HP is not actually running; require enough surplus to support a real HP start
+                    self._mark_hp_turned_off()
+                    self.current_mode = "OFF"
             # else: stay in HP
 
         elif self.current_mode == "EL":
