@@ -73,6 +73,14 @@ class TestHPMode(unittest.TestCase):
         c = self._in_hp()
         self.assertEqual(c.control(-1550), "HP")
 
+    def test_hp_stays_in_hp_when_compressor_is_idle(self):
+        c = self._in_hp()
+        self.assertEqual(c.control(-1600, hp_running=False), "HP")
+
+    def test_hp_switches_off_when_compressor_is_idle_and_surplus_is_insufficient(self):
+        c = self._in_hp()
+        self.assertEqual(c.control(-100, hp_running=False), "OFF")
+
     def test_hp_to_el_stamps_cooldown_timer(self):
         """HP→EL must stamp the cooldown so a rapid EL→OFF→HP cycle is throttled."""
         c = self._in_hp()

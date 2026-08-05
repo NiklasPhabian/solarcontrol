@@ -142,12 +142,18 @@ async def main(interactive=False):
             temp_sht = safe(sht20.read_temperature)
             humid_sht = safe(sht20.read_humidity)
 
+            fhs280_t1 = safe(fhs280.read_t1)
+            fhs280_t2 = safe(fhs280.read_t2)
+            fhs280_compressor = safe(fhs280.read_relay1_kompressor)
+            fhs280_elpatron = safe(fhs280.read_relay2_elpatron)
+
             if power_mains is not None:
-                bwwp_controller_state = bwwp_controller.control(power_mains)
+                bwwp_controller_state = bwwp_controller.control(power_mains, hp_running=fhs280_compressor)
             else:
                 bwwp_controller_state = bwwp_controller.current_mode or "OFF"
 
-            if bwwp_controller_state != prev_controller_state:
+            state_changed = bwwp_controller_state != prev_controller_state
+            if state_changed:
                 mains_str = f"{power_mains:.1f}W" if power_mains is not None else "n/a"
                 print(f"{now.strftime('%Y-%m-%d %H:%M:%S')} | controller: {prev_controller_state} -> {bwwp_controller_state}  (mains={mains_str})")
                 prev_controller_state = bwwp_controller_state
@@ -161,11 +167,6 @@ async def main(interactive=False):
             elif bwwp_controller_state == "OFF":
                 safe(fhs280_pv_relay.turn_off)
                 safe(fhs280.set_solacel_off)
-
-            fhs280_t1 = safe(fhs280.read_t1)
-            fhs280_t2 = safe(fhs280.read_t2)
-            fhs280_compressor = safe(fhs280.read_relay1_kompressor)
-            fhs280_elpatron = safe(fhs280.read_relay2_elpatron)
 
             if fhs280_compressor:
                 safe(fan_relay.turn_on)
@@ -197,8 +198,12 @@ async def main(interactive=False):
                 "fan_relay_state": fan_relay_state,
             }
 
-            if now - last_log >= LOG_INTERVAL:
+            interval_elapsed = (now - last_log) >= LOG_INTERVAL
+
+            if interval_elapsed or state_changed:
                 table.insert_row(row)
+
+            if interval_elapsed:
                 power_bars = table.latest_n_resampled_values(n=60, column="power_mains", aggregate="AVG", sample_interval=15)
                 last_log = now
 
