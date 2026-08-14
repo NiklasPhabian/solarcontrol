@@ -1,10 +1,14 @@
 import os
 from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Sequence, Tuple, Union
+
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
+ColumnSpec = Union[str, Dict[str, str]]
 
-def guess_unit(column):
+
+def guess_unit(column: str) -> str:
     """Guess the unit of a column based on its name."""
     if "power" in column:
         return "W"
@@ -21,25 +25,25 @@ class Plotter:
     _figsize = (16, 9)
     _dpi = 75
 
-    def __init__(self, db_table):
+    def __init__(self, db_table) -> None:
         self.db_table = db_table
         os.makedirs(self.OUTPUT_DIR, exist_ok=True)
 
-    def _get_time_range(self, hours=None, days=None):
+    def _get_time_range(self, hours: Optional[int] = None, days: Optional[int] = None) -> Tuple[datetime, datetime]:
         """Get start and end time based on hours or days.
 
         Returns timezone-aware datetime objects in UTC.
         """
         end_time = datetime.now(timezone.utc)
-        if hours:
+        if hours is not None:
             start_time = end_time - timedelta(hours=hours)
-        elif days:
+        elif days is not None:
             start_time = end_time - timedelta(days=days)
         else:
             raise ValueError("Must specify either hours or days")
         return start_time, end_time
 
-    def _execute_query(self, query_sql, start_time, end_time):
+    def _execute_query(self, query_sql: str, start_time: datetime, end_time: datetime) -> list:
         """Execute a database query and return results."""
         cursor = self.db_table.database.conn.execute(
             query_sql,
@@ -47,7 +51,7 @@ class Plotter:
         )
         return cursor.fetchall()
 
-    def _save_plot(self, filename):
+    def _save_plot(self, filename: str) -> str:
         """Save the current plot and update index.html."""
         filepath = os.path.join(self.OUTPUT_DIR, filename)
         plt.savefig(filepath)
@@ -58,7 +62,41 @@ class Plotter:
     def _nan_or_value(value):
         return value if value is not None else float('nan')
 
-    def _fetch_resampled_timeseries(self, columns, start_time, end_time, sample_interval=15):
+    @staticmethod
+    def _build_series(rows: Sequence[tuple], value_index: int = 1) -> List[float]:
+        return [row[value_index] if row[value_index] is not None else float('nan') for row in rows]
+
+    def _plot_bar_chart(
+        self,
+        x_positions: Sequence[int],
+        values: Sequence[float],
+        x_tick_labels: Sequence[str],
+        title: str,
+        xlabel: str,
+        ylabel: str,
+        filename: str,
+        color: str,
+        edgecolor: str,
+        x_rotation: int = 45,
+    ) -> str:
+        plt.figure(figsize=self._figsize, dpi=self._dpi)
+        plt.bar(x_positions, values, color=color, edgecolor=edgecolor, alpha=0.7)
+        plt.title(title)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.xticks(x_positions, x_tick_labels, rotation=x_rotation)
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        self._save_plot(filename)
+        return filename
+
+    def _fetch_resampled_timeseries(
+        self,
+        columns: Sequence[str],
+        start_time: datetime,
+        end_time: datetime,
+        sample_interval: int = 15,
+    ) -> List[Dict[str, object]]:
         """Return resampled averages for one or more columns."""
         if not columns:
             raise ValueError("columns must not be empty")
@@ -85,7 +123,53 @@ class Plotter:
             data.append(row_data)
         return data
 
-    def _plot_axis_series(self, axis, timestamps, data, columns):
+    def _fetch_daily_trajectory_rows(
+        self,
+        column: str,
+        start_time: datetime,
+        end_time: datetime,
+        start_hour: int,
+        end_hour: int,
+        sample_interval: int = 15,
+    ) -> list:
+        query_sql = f"""\
+        SELECT
+            substr(t."timestamp", 1, 10) AS day,
+            substr(t."timestamp", 12, 2) || ':' ||
+            printf('%02d', CAST(CAST(substr(t."timestamp", 15, 2) AS INTEGER) / {sample_interval} AS INTEGER) * {sample_interval}) AS interval,
+            AVG({column}) AS avg_value
+        FROM {self.db_table.name} AS t
+        WHERE datetime(t."timestamp") BETWEEN datetime(?) AND datetime(?)
+          AND CAST(substr(t."timestamp", 12, 2) AS INTEGER) BETWEEN {start_hour} AND {end_hour}
+        GROUP BY substr(t."timestamp", 1, 10),
+                 substr(t."timestamp", 12, 2),
+                 CAST(CAST(substr(t."timestamp", 15, 2) AS INTEGER) / {sample_interval} AS INTEGER) * {sample_interval}
+        ORDER BY day, interval;
+        """
+        return self._execute_query(query_sql, start_time, end_time)
+
+    @staticmethod
+    def _group_trajectory_rows(rows: Sequence[tuple]) -> Tuple[Dict[str, Dict[str, float]], List[str]]:
+        day_data: Dict[str, Dict[str, float]] = {}
+        intervals = set()
+        for day, interval, avg_value in rows:
+            if day not in day_data:
+                day_data[day] = {}
+            day_data[day][interval] = avg_value if avg_value is not None else float('nan')
+            intervals.add(interval)
+        return day_data, sorted(intervals)
+
+    @staticmethod
+    def _trajectory_line_style(index: int, total_days: int) -> Dict[str, object]:
+        is_latest = index == total_days - 1
+        return {
+            "linewidth": 2.5 if is_latest else 0.8,
+            "zorder": 3 if is_latest else 1,
+            "alpha": 0.95 if is_latest else 0.7,
+            "color": "red" if is_latest else "blue",
+        }
+
+    def _plot_axis_series(self, axis, timestamps: Sequence[str], data: Sequence[Dict[str, object]], columns: Sequence[ColumnSpec]):
         """Plot one or more columns onto the provided axis."""
         handles = []
         for column_spec in columns:
@@ -103,7 +187,7 @@ class Plotter:
             handles.append(handle)
         return handles
 
-    def _axis_label_for_columns(self, columns):
+    def _axis_label_for_columns(self, columns: Sequence[ColumnSpec]) -> str:
         units = []
         for column_spec in columns:
             column = column_spec if isinstance(column_spec, str) else column_spec["column"]
@@ -118,18 +202,18 @@ class Plotter:
         return ""
 
     @staticmethod
-    def _column_name(column_spec):
+    def _column_name(column_spec: ColumnSpec) -> str:
         return column_spec if isinstance(column_spec, str) else column_spec["column"]
 
     @staticmethod
-    def _format_tick_value(value):
+    def _format_tick_value(value: float) -> str:
         if abs(value) >= 100:
             return f"{value:.0f}"
         if abs(value - round(value)) < 0.05:
             return f"{value:.0f}"
         return f"{value:.1f}"
 
-    def _apply_axis_tick_units(self, axis, unit):
+    def _apply_axis_tick_units(self, axis, unit: str) -> None:
         if not unit:
             return
 
@@ -138,18 +222,18 @@ class Plotter:
         )
 
     def plot_resampled_timeseries(self,
-                                  left_columns,
-                                  hours=24,
-                                  right_columns=None,
-                                  sample_interval=15,
-                                  title=None,
-                                  left_axis_label=None,
-                                  right_axis_label=None,
-                                  left_tick_unit=None,
-                                  right_tick_unit=None,
-                                  filename=None):
+                                  left_columns: Sequence[ColumnSpec],
+                                  hours: int = 24,
+                                  right_columns: Optional[Sequence[ColumnSpec]] = None,
+                                  sample_interval: int = 15,
+                                  title: Optional[str] = None,
+                                  left_axis_label: Optional[str] = None,
+                                  right_axis_label: Optional[str] = None,
+                                  left_tick_unit: Optional[str] = None,
+                                  right_tick_unit: Optional[str] = None,
+                                  filename: Optional[str] = None) -> str:
         """Plot one or more resampled columns, optionally with a second y-axis."""
-        right_columns = right_columns or []
+        right_columns = list(right_columns or [])
         start_time, end_time = self._get_time_range(hours=hours)
 
         all_columns = [self._column_name(spec) for spec in left_columns + right_columns]
@@ -222,7 +306,7 @@ class Plotter:
         self._save_plot(filename)
         return filename
         
-    def plot_timeseries(self, column, hours=24):
+    def plot_timeseries(self, column: str, hours: int = 24) -> str:
         return self.plot_resampled_timeseries(
             left_columns=[{"column": column, "label": column}],
             hours=hours,
@@ -231,7 +315,7 @@ class Plotter:
             filename=f"{column}_last_{hours}_hours.png",
         )
 
-    def plot_bwwp_with_fhs280_temperatures(self, hours=24, sample_interval=15):
+    def plot_bwwp_with_fhs280_temperatures(self, hours: int = 24, sample_interval: int = 15) -> str:
         """Plot BWWP power on left axis and FHS280 temperatures on right axis."""
         return self.plot_resampled_timeseries(
             left_columns=[{"column": "power_bwwp", "label": "power_bwwp", "color": "tab:blue"}],
@@ -249,7 +333,7 @@ class Plotter:
             filename=f"power_bwwp_last_{hours}_hours.png",
         )
 
-    def plot_pv_phase_powers(self, hours=24, sample_interval=15):
+    def plot_pv_phase_powers(self, hours: int = 24, sample_interval: int = 15) -> str:
         """Plot PV phase powers (L1/L2/L3) together on one axis."""
         return self.plot_resampled_timeseries(
             left_columns=[
@@ -265,7 +349,7 @@ class Plotter:
             filename=f"power_pv_l1_l2_l3_last_{hours}_hours.png",
         )
 
-    def plot_avg_by_hours_of_day(self, column, days=7):
+    def plot_avg_by_hours_of_day(self, column: str, days: int = 7) -> str:
         """Plot the average over the hours of the day.
         
         Args:
@@ -285,7 +369,6 @@ class Plotter:
         """
         rows = self._execute_query(query_sql, start_time, end_time)
         
-        # Prepare data for plotting
         hours = list(range(24))
         avgs = [float('nan')] * 24
 
@@ -294,68 +377,73 @@ class Plotter:
                 avgs[hour] = avg
         
         unit = guess_unit(column)
-        # Create bar chart
-        plt.figure(figsize=self._figsize, dpi=self._dpi)
-        plt.bar(hours, avgs, color='steelblue', edgecolor='navy', alpha=0.7)
-        plt.title(f"Average {column} by hour of day (last {days} days)")
-        plt.xlabel("Hour of day (local time)")
-        plt.ylabel(f"{column} ({unit})")
-        plt.xticks(hours)
-        plt.grid(axis='y', alpha=0.3)
-        plt.tight_layout()
-
         filename = f"{column}_by_hour.png"
-        
-        self._save_plot(filename)
-        return filename
+        y_label = f"{column} ({unit})" if unit else column
+        return self._plot_bar_chart(
+            x_positions=hours,
+            values=avgs,
+            x_tick_labels=[str(hour) for hour in hours],
+            title=f"Average {column} by hour of day (last {days} days)",
+            xlabel="Hour of day (local time)",
+            ylabel=y_label,
+            filename=filename,
+            color='steelblue',
+            edgecolor='navy',
+            x_rotation=0,
+        )
 
-    def plot_daily_energy(self, column, days=30):
+    def plot_daily_energy(
+        self,
+        column: str,
+        days: int = 30,
+        resample_interval: int = 15,
+        filename: Optional[str] = None,
+    ) -> str:
         """Plot the daily energy production for the last n days as a bar chart.
-        
-        Energy is calculated by taking hourly averages and summing them per day.
-        
+
         Args:
             column: The column name to plot (e.g., 'power_pv')
             days: Number of days to show in the plot
         """
         start_time, end_time = self._get_time_range(days=days)
-        
-        query_sql = f"""\
-        SELECT 
-            day,
-            SUM(hourly_avg) / 1000 AS daily_energy_kwh
-        FROM (
-            SELECT 
-                substr(t."timestamp", 1, 10) AS day,
-                AVG({column}) AS hourly_avg
-            FROM {self.db_table.name} AS t
-            WHERE datetime(t."timestamp") BETWEEN datetime(?) AND datetime(?)
-            GROUP BY substr(t."timestamp", 1, 10), CAST(substr(t."timestamp", 12, 2) AS INTEGER)
-        ) hourly_data
-        GROUP BY day
-        ORDER BY day;
-        """
-        rows = self._execute_query(query_sql, start_time, end_time)
-        
-        # Prepare data for plotting
-        days_list = [row[0] for row in rows]
-        energies = [row[1] if row[1] is not None else float('nan') for row in rows]
-        
-        # Create bar chart
-        plt.figure(figsize=self._figsize, dpi=self._dpi)
-        plt.bar(range(len(days_list)), energies, color='green', edgecolor='darkgreen', alpha=0.7)
-        plt.title(f"Daily energy: {column} (last {days} days)")
-        plt.xlabel("Date (local time)")
-        plt.ylabel("Energy (kWh)")
-        plt.xticks(range(len(days_list)), days_list, rotation=45)
-        plt.grid(axis='y', alpha=0.3)
-        plt.tight_layout()
-        
-        filename = f"{column}_daily_energy.png"
-        self._save_plot(filename)
-        return filename
+        rows = self.db_table.daily_energy(
+            column=column,
+            start_time=start_time,
+            end_time=end_time,
+            resample_interval=resample_interval,
+        )
 
-    def plot_daily_trajectory(self, column, days=30, start_hour=5, end_hour=20):
+        days_list = [row["date"] for row in rows]
+        energies = [
+            float('nan') if row["energy_wh"] is None else row["energy_wh"] / 1000.0
+            for row in rows
+        ]
+
+        if filename is None:
+            filename = f"{column}_daily_energy.png"
+
+        return self._plot_bar_chart(
+            x_positions=list(range(len(days_list))),
+            values=energies,
+            x_tick_labels=days_list,
+            title=f"Daily energy: {column} (last {days} days)",
+            xlabel="Date (local time)",
+            ylabel="Energy (kWh)",
+            filename=filename,
+            color='green',
+            edgecolor='darkgreen',
+        )
+
+    def plot_daily_solar_energy(self, days: int = 30, resample_interval: int = 15) -> str:
+        """Plot daily solar energy production (power_pv) as a bar chart."""
+        return self.plot_daily_energy(
+            column="power_pv",
+            days=days,
+            resample_interval=resample_interval,
+            filename="power_pv_daily_energy.png",
+        )
+
+    def plot_daily_trajectory(self, column: str, days: int = 30, start_hour: int = 5, end_hour: int = 20) -> str:
         """Plot the daily power trajectory with one line per day.
         
         Shows how power changes throughout the day by plotting quarter-hourly averages.
@@ -366,47 +454,26 @@ class Plotter:
             days: Number of days to include in the plot
         """
         start_time, end_time = self._get_time_range(days=days)
-        
-        query_sql = f"""\
-        SELECT 
-            substr(t."timestamp", 1, 10) AS day,
-            substr(t."timestamp", 12, 2) || ':' || 
-            printf('%02d', CAST(CAST(substr(t."timestamp", 15, 2) AS INTEGER) / 15 AS INTEGER) * 15) AS quarter_hour,
-            AVG({column}) AS avg_power
-        FROM {self.db_table.name} AS t
-        WHERE datetime(t."timestamp") BETWEEN datetime(?) AND datetime(?)
-        AND CAST(substr(t."timestamp", 12, 2) AS INTEGER) BETWEEN {start_hour} AND {end_hour}  -- Focus on daytime hours
-        GROUP BY substr(t."timestamp", 1, 10), 
-                 substr(t."timestamp", 12, 2),
-                 CAST(CAST(substr(t."timestamp", 15, 2) AS INTEGER) / 15 AS INTEGER) * 15
-        ORDER BY day, quarter_hour;
-        """
-        rows = self._execute_query(query_sql, start_time, end_time)
-        
-        # Organize data by day
-        day_data = {}
-        quarter_hours_set = set()
-        for day, quarter_hour, avg_power in rows:
-            if day not in day_data:
-                day_data[day] = {}
-            day_data[day][quarter_hour] = avg_power if avg_power is not None else float('nan')
-            quarter_hours_set.add(quarter_hour)
+        rows = self._fetch_daily_trajectory_rows(
+            column=column,
+            start_time=start_time,
+            end_time=end_time,
+            start_hour=start_hour,
+            end_hour=end_hour,
+            sample_interval=15,
+        )
+        day_data, quarter_hours = self._group_trajectory_rows(rows)
         
         # Create line plot
         plt.figure(figsize=self._figsize, dpi=self._dpi)
-        quarter_hours = sorted(quarter_hours_set)
         
         sorted_days = sorted(day_data.keys())
         for i, day in enumerate(sorted_days):
             powers = [day_data[day].get(qh, float('nan')) for qh in quarter_hours]
-            is_latest = (i == len(sorted_days) - 1)
-            linewidth = 2.5 if is_latest else 0.8
-            zorder = 3 if is_latest else 1
-            alpha = 0.95 if is_latest else 0.7
-            color = 'red' if is_latest else 'blue'
+            line_style = self._trajectory_line_style(i, len(sorted_days))
             plt.plot(range(len(quarter_hours)), powers,
-                     marker='o', label=day, alpha=alpha, markersize=0,
-                     linewidth=linewidth, zorder=zorder, color=color)
+                     marker='o', label=day, alpha=line_style["alpha"], markersize=0,
+                     linewidth=line_style["linewidth"], zorder=line_style["zorder"], color=line_style["color"])
         
         plt.title(f"Daily power trajectory: {column} (last {days} days)")
         plt.xlabel("Time of day (local time)")
@@ -438,7 +505,7 @@ def main() -> None:
 
     plotter = Plotter(db_table)
     plotter.plot_timeseries("power_pv", hours=24)
-    plotter.plot_daily_energy("power_pv", days=30)  
+    plotter.plot_daily_solar_energy(days=30)
     plotter.plot_avg_by_hours_of_day("power_pv", days=7)
     plotter.plot_daily_trajectory("power_pv", days=30) 
     plotter.plot_timeseries("temperature", hours=24)

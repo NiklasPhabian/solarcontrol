@@ -26,7 +26,6 @@ multidict==6.7.1
 numpy==2.0.2
 packaging==26.1
 pillow==11.3.0
-pkg_resources==0.0.0
 propcache==0.4.1
 pycparser==2.23
 pydantic==2.13.1

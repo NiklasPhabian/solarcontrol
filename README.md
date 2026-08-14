@@ -104,6 +104,13 @@ For fish shell activation:
 source /opt/solarcontrol/venv/bin/activate.fish
 ```
 
+... with conda:
+
+```bash
+conda create --name solarcontrol python=3.9.2
+pip install -r requirements.txt
+```
+
 ## 5. Configure Raspberry Pi Interfaces
 
 ### I2C (OLED display)

@@ -202,6 +202,7 @@ async def main(interactive=False):
 
             if interval_elapsed or state_changed:
                 table.insert_row(row)
+                last_log = now
 
             if interval_elapsed:
                 power_bars = table.latest_n_resampled_values(n=60, column="power_mains", aggregate="AVG", sample_interval=15)
@@ -215,7 +216,8 @@ async def main(interactive=False):
                 plot_files.append(plotter.plot_timeseries("power_mypv", hours=24))
                 plot_files.append(plotter.plot_pv_phase_powers(hours=24, sample_interval=15))
                 plot_files.append(plotter.plot_daily_trajectory("power_pv", days=30)) 
-                plot_files.append(plotter.plot_avg_by_hours_of_day("power_pv", days=7))                
+                plot_files.append(plotter.plot_avg_by_hours_of_day("power_pv", days=7))          
+                plot_files.append(plotter.plot_daily_energy(column="power_pv", days=30, resample_interval=15))      
                 last_plot = now
 
             html_writer = HTMLWriter(output_dir=output_dir, plot_files=plot_files, current_conditions=row)
