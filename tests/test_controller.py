@@ -19,59 +19,75 @@ def make_controller(**kwargs):
 class TestOffState(unittest.TestCase):
     def test_stays_off_with_insufficient_excess(self):
         c = make_controller()
-        self.assertEqual(c.control(-30), "OFF")   # only 30 W excess, need 600
+        self.assertEqual(c.control(-30, hp_running=True), "OFF")   # only 30 W excess, need 600
 
     def test_starts_hp_with_moderate_excess(self):
         c = make_controller()
-        self.assertEqual(c.control(-700), "HP")   # 700 W excess, threshold -600
+        self.assertEqual(c.control(-700, hp_running=True), "HP")   # 700 W excess, threshold -600
 
     def test_starts_el_directly_with_high_excess(self):
         c = make_controller()
-        self.assertEqual(c.control(-2100), "EL")  # 2100 W excess, threshold -2050
+        self.assertEqual(c.control(-2100, hp_running=True), "EL")  # 2100 W excess, threshold -2050
 
-    def test_hp_blocked_by_cooldown(self):
+    def test_hp_start_blocked_by_cooldown_when_not_running(self):
         c = make_controller(min_hp_off_seconds=300)
         c.time_turned_off_hp = datetime.datetime.now()   # keep wall-clock stamp for observability
         c._hp_off_monotonic = time.monotonic()           # just turned off
-        self.assertEqual(c.control(-700), "OFF")
+        self.assertEqual(c.control(-700, hp_running=False), "OFF")
 
-    def test_hp_does_not_start_exactly_at_threshold(self):
+    def test_hp_does_not_start_exactly_at_threshold_when_not_running(self):
         c = make_controller()
-        self.assertEqual(c.control(-600), "OFF")
+        self.assertEqual(c.control(-600, hp_running=False), "OFF")
+
+    def test_uninitialized_reattaches_to_hp_when_running(self):
+        c = make_controller(min_hp_off_seconds=300)
+        c.time_turned_off_hp = datetime.datetime.now()   # cooldown active, but HP is already running
+        c._hp_off_monotonic = time.monotonic()
+        self.assertEqual(c.control(-700, hp_running=True), "HP")
+
+    def test_off_reattaches_to_hp_when_compressor_is_running(self):
+        c = make_controller()
+        c.current_mode = "OFF"
+        self.assertEqual(c.control(-100, hp_running=True), "HP")
+
+    def test_off_does_not_reattach_to_hp_when_surplus_is_too_low(self):
+        c = make_controller()
+        c.current_mode = "OFF"
+        self.assertEqual(c.control(-20, hp_running=True), "OFF")
 
     def test_el_exact_threshold_falls_back_to_hp_zone(self):
         c = make_controller()
         # At exact EL threshold, EL does not start (strict <), but HP still can.
-        self.assertEqual(c.control(-2050), "HP")
+        self.assertEqual(c.control(-2050, hp_running=True), "HP")
 
 
 class TestHPMode(unittest.TestCase):
     def _in_hp(self):
         c = make_controller()
-        c.control(-700)   # enter HP
+        c.control(-700, hp_running=True)   # enter HP
         return c
 
     def test_stays_in_hp_with_stable_excess(self):
         c = self._in_hp()
-        self.assertEqual(c.control(-700), "HP")
+        self.assertEqual(c.control(-700, hp_running=True), "HP")
 
     def test_turns_off_when_excess_disappears(self):
         c = self._in_hp()
-        self.assertEqual(c.control(-20), "OFF")   # above off_threshold (-50)
+        self.assertEqual(c.control(-20, hp_running=True), "OFF")   # above off_threshold (-50)
 
     def test_off_stamps_cooldown_timer(self):
         c = self._in_hp()
         before = datetime.datetime.now()
-        c.control(-20)
+        c.control(-20, hp_running=True)
         self.assertGreaterEqual(c.time_turned_off_hp, before)
 
     def test_upgrades_to_el_with_high_excess(self):
         c = self._in_hp()
-        self.assertEqual(c.control(-1600), "EL")  # 1600 W excess, threshold -1550
+        self.assertEqual(c.control(-1600, hp_running=True), "EL")  # 1600 W excess, threshold -1550
 
     def test_hp_does_not_upgrade_to_el_at_exact_threshold(self):
         c = self._in_hp()
-        self.assertEqual(c.control(-1550), "HP")
+        self.assertEqual(c.control(-1550, hp_running=True), "HP")
 
     def test_hp_stays_in_hp_when_compressor_is_idle(self):
         c = self._in_hp()
@@ -85,29 +101,29 @@ class TestHPMode(unittest.TestCase):
         """HP→EL must stamp the cooldown so a rapid EL→OFF→HP cycle is throttled."""
         c = self._in_hp()
         before = datetime.datetime.now()
-        c.control(-1600)   # HP → EL
+        c.control(-1600, hp_running=True)   # HP → EL
         self.assertGreaterEqual(c.time_turned_off_hp, before)
 
 
 class TestELMode(unittest.TestCase):
     def _in_el(self):
         c = make_controller()
-        c.control(-2100)   # enter EL
+        c.control(-2100, hp_running=True)   # enter EL
         return c
 
     def test_stays_in_el_with_high_excess(self):
         c = self._in_el()
-        self.assertEqual(c.control(-2100), "EL")
+        self.assertEqual(c.control(-2100, hp_running=True), "EL")
 
     def test_turns_off_when_excess_drops_below_margin(self):
         c = self._in_el()
-        self.assertEqual(c.control(-20), "OFF")
+        self.assertEqual(c.control(-20, hp_running=True), "OFF")
 
     def test_el_to_off_does_not_stamp_hp_cooldown_timer(self):
         c = self._in_el()
         old_wall = c.time_turned_off_hp
         old_mono = c._hp_off_monotonic
-        self.assertEqual(c.control(-20), "OFF")
+        self.assertEqual(c.control(-20, hp_running=True), "OFF")
         self.assertEqual(c.time_turned_off_hp, old_wall)
         self.assertEqual(c._hp_off_monotonic, old_mono)
 
@@ -115,7 +131,7 @@ class TestELMode(unittest.TestCase):
         """EL must go through OFF — a direct EL→HP would cause oscillation."""
         c = self._in_el()
         # power in the HP zone (600–2050 W excess, with EL running)
-        result = c.control(-700)
+        result = c.control(-700, hp_running=True)
         self.assertNotEqual(result, "HP", "EL→HP direct transition causes oscillation; must go via OFF")
         self.assertEqual(result, "EL")   # still enough excess to stay in EL
 
@@ -125,7 +141,7 @@ class TestELMode(unittest.TestCase):
         c.time_turned_off_hp = datetime.datetime.now()   # keep wall-clock stamp for observability
         c._hp_off_monotonic = time.monotonic()           # cooldown active
         # power_balance = -700: EL is sustainable (exporting 700 W), stay in EL
-        self.assertEqual(c.control(-700), "EL")
+        self.assertEqual(c.control(-700, hp_running=True), "EL")
 
 
 class TestOscillationFreedom(unittest.TestCase):
@@ -133,8 +149,8 @@ class TestOscillationFreedom(unittest.TestCase):
         """At solar ≈ 2600 W the old code oscillated EL↔HP every cycle; must be stable."""
         c = make_controller()
         # Enter EL from OFF (high solar burst)
-        c.control(-2100)
-        states = [c.control(-600) for _ in range(5)]   # solar settles at 2600 W (with EL: pb=-600)
+        c.control(-2100, hp_running=True)
+        states = [c.control(-600, hp_running=True) for _ in range(5)]   # solar settles at 2600 W (with EL: pb=-600)
         self.assertTrue(
             all(s == states[0] for s in states),
             f"Mode oscillated: {states}",
@@ -146,7 +162,7 @@ class TestCooldownBoundary(unittest.TestCase):
         c = make_controller(min_hp_off_seconds=300)
         c.current_mode = "OFF"
         c._hp_off_monotonic = time.monotonic() - 300
-        self.assertEqual(c.control(-700), "HP")
+        self.assertEqual(c.control(-700, hp_running=True), "HP")
 
 
 class TestCooldownHelpers(unittest.TestCase):

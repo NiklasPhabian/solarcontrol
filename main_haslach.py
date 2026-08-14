@@ -115,7 +115,7 @@ async def main(interactive=False):
                                  el_nominal_power=el_nominal_power,
                                  safety_margin=safety_margin,
                                  min_hp_off_seconds=min_hp_off_seconds)
-    fhs280_pv_relay = Relay(pin=relay_pin)
+    smartgrid_relay = Relay(pin=relay_pin)
     prev_controller_state = None
 
     power_bars = []
@@ -159,13 +159,13 @@ async def main(interactive=False):
                 prev_controller_state = bwwp_controller_state
 
             if bwwp_controller_state == "HP":
-                safe(fhs280_pv_relay.turn_on)
+                safe(smartgrid_relay.turn_on)
                 safe(fhs280.set_solacel_only_hp)
             elif bwwp_controller_state == "EL":
-                safe(fhs280_pv_relay.turn_on)
+                safe(smartgrid_relay.turn_on)
                 safe(fhs280.set_solacel_only_el)
             elif bwwp_controller_state == "OFF":
-                safe(fhs280_pv_relay.turn_off)
+                safe(smartgrid_relay.turn_off)
                 safe(fhs280.set_solacel_off)
 
             if fhs280_compressor:
@@ -239,7 +239,7 @@ async def main(interactive=False):
             await asyncio.sleep(60)
     finally:
         database.close()
-        fhs280_pv_relay.cleanup()
+        smartgrid_relay.cleanup()
 
 
 if __name__ == "__main__":

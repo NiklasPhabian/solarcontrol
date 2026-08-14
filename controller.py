@@ -70,13 +70,14 @@ class Controller:
         self.time_turned_off_hp = datetime.datetime.now()
         self._hp_off_monotonic = time.monotonic()
 
-    def control(self, power_balance, hp_running=True):
+    def control(self, power_balance, hp_running):
         """Update controller state based on power balance with hysteresis.
 
         Power convention: negative = excess solar being exported to grid.
 
         State machine:
 
+                    OFF ──(hp_running and < off_threshold)────► HP
           OFF ──(< on_threshold_hp)──────────────────► HP
           OFF ──(< on_threshold_el_from_off)─────────► EL
 
@@ -93,14 +94,17 @@ class Controller:
         ~1500 W, making the new power_balance cross the HP→EL threshold
         immediately and bouncing indefinitely.
         """
-        if self.current_mode is None or self.current_mode == "OFF":
+        if self.current_mode is None:
+            self.current_mode = "OFF"
+
+        if self.current_mode == "OFF":
             if power_balance < self.on_threshold_el_from_off:
                 self.current_mode = "EL"
-            elif power_balance < self.on_threshold_hp:
-                if self.can_restart_hp():
-                    self.current_mode = "HP"
-                else:
-                    self.current_mode = "OFF"
+            elif power_balance < self.on_threshold_hp and self.can_restart_hp():
+                self.current_mode = "HP"
+            elif hp_running and power_balance < self.off_threshold:
+                # HP is already physically running; reattach logical state while surplus still covers it.
+                self.current_mode = "HP"
             else:
                 self.current_mode = "OFF"
 
