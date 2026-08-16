@@ -108,6 +108,7 @@ source /opt/solarcontrol/venv/bin/activate.fish
 
 ```bash
 conda create --name solarcontrol python=3.9.2
+conda activate solarcontrol
 pip install -r requirements.txt
 ```
 
