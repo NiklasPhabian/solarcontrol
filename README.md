@@ -43,16 +43,25 @@ Optional flags:
 
 ## Local Battery Analysis Development
 
-Battery-storage economics is planned but not implemented yet. The preserved
-[design](docs/superpowers/specs/2026-08-16-battery-storage-economics-design.md) and
-[implementation plan](docs/superpowers/plans/2026-08-16-battery-storage-economics.md)
-describe the next work: creating `notebooks/battery_storage_economics.ipynb`.
-No battery simulation is wired into either runtime profile.
+The analysis-only battery-storage economics notebook is available at
+`notebooks/battery_storage_economics.ipynb`. It reconstructs managed solar
+heating demand and simulates an AC-coupled self-consumption battery; no battery
+simulation is wired into either runtime profile. The preserved
+[design](docs/superpowers/specs/2026-08-16-battery-storage-economics-design.md)
+and [implementation plan](docs/superpowers/plans/2026-08-16-battery-storage-economics.md)
+document the model and validation assumptions.
 
 Develop the notebook in a local Git clone, not through SSHFS. Use the existing
-`solarcontrol` conda environment and run regressions before pushing:
+`solarcontrol` conda environment. The notebook prefers the local
+`.tmp_docs/haslach-stabilization-2026-10-04.db` snapshot when present, otherwise
+it opens `database/haslach.db`; both inputs are opened read-only. Execute the
+notebook and run regressions before pushing:
 
 ```bash
+conda run -n solarcontrol jupyter nbconvert --to notebook --execute \
+  notebooks/battery_storage_economics.ipynb \
+  --output /tmp/battery_storage_economics.executed.ipynb \
+  --ExecutePreprocessor.timeout=300
 conda run -n solarcontrol python -m unittest discover -s tests -p "test_*.py"
 ```
 
