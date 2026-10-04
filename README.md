@@ -50,6 +50,8 @@ simulation is wired into either runtime profile. The preserved
 [design](docs/superpowers/specs/2026-08-16-battery-storage-economics-design.md)
 and [implementation plan](docs/superpowers/plans/2026-08-16-battery-storage-economics.md)
 document the model and validation assumptions.
+Its editable `RESAMPLE_FREQUENCY` defaults to 15 minutes to accommodate
+timestamp variation in the source's roughly five-minute sampling cadence.
 
 Develop the notebook in a local Git clone, not through SSHFS. Use the existing
 `solarcontrol` conda environment. The notebook prefers the local

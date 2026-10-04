@@ -42,7 +42,7 @@ Power sign conventions are:
 
 ## Data Preparation And Quality
 
-Resample power measurements to a configurable regular interval, defaulting to five minutes. Each interval uses the mean of its available samples.
+Resample power measurements to a configurable regular interval, defaulting to 15 minutes. Source samples arrive at roughly five-minute cadence, so five-minute bins are too sensitive to timestamp jitter and may be mostly empty. Each interval uses the mean of its available samples; `RESAMPLE_FREQUENCY` remains editable for other cadences.
 
 The notebook will report:
 

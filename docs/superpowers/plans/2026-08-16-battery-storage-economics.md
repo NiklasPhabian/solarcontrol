@@ -19,7 +19,7 @@ All tasks below remain pending.
 
 - Create only `notebooks/battery_storage_economics.ipynb`; do not modify the database or runtime control code.
 - Use only pandas, NumPy, matplotlib, sqlite3, pathlib, dataclasses, and Python standard-library functionality already available in the `solarcontrol` environment.
-- Default to data beginning `2026-07-01`, five-minute intervals, 95% daily coverage, COP 4.0, and a 330-day lifecycle-economics threshold.
+- Default to data beginning `2026-07-01`, configurable 15-minute intervals, 95% daily coverage, COP 4.0, and a 330-day lifecycle-economics threshold. Keep `RESAMPLE_FREQUENCY` editable; the wider default accommodates timestamp variation in the roughly five-minute source cadence.
 - Positive `power_mains` is import and negative `power_mains` is export.
 - Battery dispatch is self-consumption-only: no grid charging and no simultaneous charge/discharge.
 - Partial-year annualization is disabled by default and, when enabled, must be visibly labeled provisional and seasonally biased.
@@ -43,7 +43,7 @@ Add markdown explaining the purpose, sign conventions, partial-year warning, and
 ```python
 ANALYSIS_START = "2026-07-01"
 ANALYSIS_END = None
-RESAMPLE_FREQUENCY = "5min"
+RESAMPLE_FREQUENCY = "15min"
 MINIMUM_DAILY_COVERAGE = 0.95
 HEAT_PUMP_COP = 4.0
 HEAT_PUMP_STANDBY_THRESHOLD_W = 100.0
