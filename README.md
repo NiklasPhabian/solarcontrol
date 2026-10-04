@@ -41,6 +41,33 @@ Optional flags:
 --repo-path <path>
 ```
 
+## Local Battery Analysis Development
+
+Battery-storage economics is planned but not implemented yet. The preserved
+[design](docs/superpowers/specs/2026-08-16-battery-storage-economics-design.md) and
+[implementation plan](docs/superpowers/plans/2026-08-16-battery-storage-economics.md)
+describe the next work: creating `notebooks/battery_storage_economics.ipynb`.
+No battery simulation is wired into either runtime profile.
+
+Develop the notebook in a local Git clone, not through SSHFS. Use the existing
+`solarcontrol` conda environment and run regressions before pushing:
+
+```bash
+conda run -n solarcontrol python -m unittest discover -s tests -p "test_*.py"
+```
+
+The Raspberry Pi's `database/haslach.db` is live data. Transfer a consistent
+snapshot using SQLite's backup API rather than copying a database while it is
+being written. Keep analysis snapshots outside Git; the database already tracked
+in the repository may be older than the live dataset. The notebook must open its
+input read-only and must not change runtime code or the database.
+
+The Haslach controller accepts optional `el_running` relay feedback. Omitting it
+retains legacy EL hysteresis; the runtime supplies it explicitly. An idle or
+unknown EL relay requires full starting surplus, whereas a running EL uses the
+remaining-export safety margin. HP-to-EL upgrades also reserve the safety margin;
+there is no direct EL-to-HP transition, and HP cooldown semantics are preserved.
+
 ## 1. Base System Packages
 
 ```bash

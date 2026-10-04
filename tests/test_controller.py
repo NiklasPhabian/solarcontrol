@@ -83,11 +83,15 @@ class TestHPMode(unittest.TestCase):
 
     def test_upgrades_to_el_with_high_excess(self):
         c = self._in_hp()
-        self.assertEqual(c.control(-1600, hp_running=True), "EL")  # 1600 W excess, threshold -1550
+        self.assertEqual(c.control(-1650, hp_running=True), "EL")  # 1650 W excess, threshold -1600
 
     def test_hp_does_not_upgrade_to_el_at_exact_threshold(self):
         c = self._in_hp()
-        self.assertEqual(c.control(-1550, hp_running=True), "HP")
+        self.assertEqual(c.control(-1600, hp_running=True), "HP")
+
+    def test_hp_upgrade_reserves_safety_margin(self):
+        c = self._in_hp()
+        self.assertEqual(c.control(-1575, hp_running=True), "HP")
 
     def test_hp_stays_in_hp_when_compressor_is_idle(self):
         c = self._in_hp()
@@ -101,7 +105,7 @@ class TestHPMode(unittest.TestCase):
         """HP→EL must stamp the cooldown so a rapid EL→OFF→HP cycle is throttled."""
         c = self._in_hp()
         before = datetime.datetime.now()
-        c.control(-1600, hp_running=True)   # HP → EL
+        c.control(-1650, hp_running=True)   # HP → EL
         self.assertGreaterEqual(c.time_turned_off_hp, before)
 
 
@@ -155,6 +159,56 @@ class TestOscillationFreedom(unittest.TestCase):
             all(s == states[0] for s in states),
             f"Mode oscillated: {states}",
         )
+
+
+class TestELRelayFeedback(unittest.TestCase):
+    def test_running_el_stays_with_surplus_above_margin(self):
+        c = make_controller()
+        c.current_mode = "EL"
+        self.assertEqual(c.control(-700, hp_running=False, el_running=True), "EL")
+
+    def test_running_el_turns_off_at_exact_margin(self):
+        c = make_controller()
+        c.current_mode = "EL"
+        self.assertEqual(c.control(-50, hp_running=False, el_running=True), "OFF")
+
+    def test_idle_or_unknown_el_requires_full_starting_surplus(self):
+        for relay_state in (False, None):
+            for power_balance, expected in ((-2100, "EL"), (-2050, "OFF"), (-700, "OFF")):
+                with self.subTest(relay_state=relay_state, power_balance=power_balance):
+                    c = make_controller()
+                    c.current_mode = "EL"
+                    self.assertEqual(
+                        c.control(power_balance, hp_running=False, el_running=relay_state),
+                        expected,
+                    )
+
+    def test_idle_el_turns_off_without_changing_hp_cooldown(self):
+        c = make_controller()
+        c.current_mode = "EL"
+        old_wall = c.time_turned_off_hp
+        old_mono = c._hp_off_monotonic
+        self.assertEqual(c.control(-700, hp_running=False, el_running=False), "OFF")
+        self.assertEqual(c.time_turned_off_hp, old_wall)
+        self.assertEqual(c._hp_off_monotonic, old_mono)
+
+    def test_hp_to_el_to_off_blocks_hp_restart_during_cooldown(self):
+        c = make_controller()
+        self.assertEqual(c.control(-700, hp_running=False, el_running=False), "HP")
+        self.assertEqual(c.control(-1650, hp_running=True, el_running=False), "EL")
+        self.assertEqual(c.control(-700, hp_running=False, el_running=False), "OFF")
+        self.assertEqual(c.control(-700, hp_running=False, el_running=False), "OFF")
+        c._hp_off_monotonic = time.monotonic() - 301
+        self.assertEqual(c.control(-700, hp_running=False, el_running=False), "HP")
+
+    def test_running_el_does_not_oscillate_with_reduced_surplus(self):
+        c = make_controller()
+        self.assertEqual(c.control(-2100, hp_running=False, el_running=False), "EL")
+        states = [
+            c.control(-600, hp_running=False, el_running=True)
+            for _ in range(5)
+        ]
+        self.assertEqual(states, ["EL"] * 5)
 
 
 class TestCooldownBoundary(unittest.TestCase):

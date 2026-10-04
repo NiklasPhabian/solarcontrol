@@ -46,7 +46,7 @@ class Controller:
         self.on_threshold_el_from_off = -(el_nominal_power + safety_margin)     # e.g. -2050
 
         # Upgrade HP→EL: HP already draws hp_min, so only the delta is needed
-        self.on_threshold_el_from_hp = -(el_nominal_power - hp_nominal_power_min)  # e.g. -1550
+        self.on_threshold_el_from_hp = -(el_nominal_power + safety_margin) + hp_nominal_power_min  # e.g. -1600
 
         # Turn off any device: less than safety_margin of excess remaining
         self.off_threshold = -safety_margin                                      # e.g. -50
@@ -70,10 +70,12 @@ class Controller:
         self.time_turned_off_hp = datetime.datetime.now()
         self._hp_off_monotonic = time.monotonic()
 
-    def control(self, power_balance, hp_running):
+    def control(self, power_balance, hp_running, el_running=True):
         """Update controller state based on power balance with hysteresis.
 
         Power convention: negative = excess solar being exported to grid.
+        Omitted el_running preserves legacy EL hysteresis. Pass relay feedback
+        explicitly: False or None requires full EL starting surplus.
 
         State machine:
 
@@ -82,10 +84,11 @@ class Controller:
           OFF ──(< on_threshold_el_from_off)─────────► EL
 
           HP  ──(>= off_threshold)────────────────────► OFF  (stamps cooldown timer)
-          HP  ──(< on_threshold_el_from_hp)───────────► EL   (if compressor is running)
-          HP  ──(< on_threshold_el_from_off)──────────► EL   (if compressor is not running)
+          HP  ──(< on_threshold_el_from_hp)───────────► EL   (if hp_running)
+          HP  ──(< on_threshold_el_from_off)──────────► EL   (if not hp_running)
 
-          EL  ──(>= off_threshold)────────────────────► OFF  (no cooldown stamp)
+          EL  ──(>= off_threshold)────────────────────► OFF  (if el_running)
+          EL  ──(>= on_threshold_el_from_off)─────────► OFF  (if not el_running)
 
         There is intentionally no direct EL→HP transition.  When excess solar
         drops while in EL mode the controller goes EL→OFF, from which HP can
@@ -125,8 +128,9 @@ class Controller:
             # else: stay in HP
 
         elif self.current_mode == "EL":
-            if power_balance >= self.off_threshold:
+            threshold = self.off_threshold if el_running else self.on_threshold_el_from_off
+            if power_balance >= threshold:
                 self.current_mode = "OFF"
-            # else: stay in EL — no direct EL→HP transition (see docstring)
+            # No direct EL->HP transition and no HP cooldown stamp.
 
         return self.current_mode

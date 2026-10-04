@@ -148,7 +148,11 @@ async def main(interactive=False):
             fhs280_elpatron = safe(fhs280.read_relay2_elpatron)
 
             if power_mains is not None:
-                bwwp_controller_state = bwwp_controller.control(power_mains, hp_running=fhs280_compressor)
+                bwwp_controller_state = bwwp_controller.control(
+                    power_mains,
+                    hp_running=fhs280_compressor,
+                    el_running=fhs280_elpatron,
+                )
             else:
                 bwwp_controller_state = bwwp_controller.current_mode or "OFF"
 
